@@ -1,0 +1,7 @@
+name,balance,type
+Checking,28000,cash
+Savings,42000,cash
+401k Plan,318000,retirement
+Brokerage,146000,brokerage
+529 Savings,61000,education
+Mortgage,-420000,debt
