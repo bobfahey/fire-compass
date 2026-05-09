@@ -9,8 +9,8 @@ import {
   Transaction,
 } from "@/lib/types";
 
-const FIRE_RETURN = 0.07;
-const SWR = 0.04;
+export const REAL_RETURN_RATE = 0.07;
+export const SAFE_WITHDRAWAL_RATE = 0.04;
 
 const phasePlan: Array<{ name: LifePhase["name"]; years: number; multiplier: number }> = [
   { name: "Young Kids", years: 4, multiplier: 1.1 },
@@ -93,12 +93,12 @@ export const buildFireProjection = (
   const annualSavings = Math.max(0, annualIncome - annualExpense);
 
   const projectedPortfolioAtFire = Math.round(
-    currentInvestableAssets * Math.pow(1 + FIRE_RETURN, yearsToFire) +
-      annualSavings * ((Math.pow(1 + FIRE_RETURN, yearsToFire) - 1) / FIRE_RETURN),
+    currentInvestableAssets * Math.pow(1 + REAL_RETURN_RATE, yearsToFire) +
+      annualSavings * ((Math.pow(1 + REAL_RETURN_RATE, yearsToFire) - 1) / REAL_RETURN_RATE),
   );
 
   const maxPhaseSpending = Math.max(...phases.map((p) => p.annualSpending), 0);
-  const requiredNestEggAtFire = Math.round(maxPhaseSpending / SWR);
+  const requiredNestEggAtFire = Math.round(maxPhaseSpending / SAFE_WITHDRAWAL_RATE);
 
   return {
     targetDate,

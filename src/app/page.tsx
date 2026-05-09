@@ -4,7 +4,9 @@ import {
   buildLifePhases,
   coupleAlignmentSummary,
   detectPriorityDrift,
+  REAL_RETURN_RATE,
   rankGoals,
+  SAFE_WITHDRAWAL_RATE,
 } from "@/lib/fire";
 import { loadDataset } from "@/lib/data-loader";
 import { ReAlignForm } from "./re-align-form";
@@ -42,8 +44,14 @@ export default async function Home() {
             <li>Years to FIRE: {projection.yearsToFire}</li>
             <li>Current investable assets: {money.format(projection.currentInvestableAssets)}</li>
             <li>Annual savings: {money.format(projection.annualSavings)}</li>
-            <li>Projected portfolio (7% real): {money.format(projection.projectedPortfolioAtFire)}</li>
-            <li>Required nest egg (4% SWR): {money.format(projection.requiredNestEggAtFire)}</li>
+            <li>
+              Projected portfolio ({(REAL_RETURN_RATE * 100).toFixed(0)}% real):{" "}
+              {money.format(projection.projectedPortfolioAtFire)}
+            </li>
+            <li>
+              Required nest egg ({(SAFE_WITHDRAWAL_RATE * 100).toFixed(0)}% SWR):{" "}
+              {money.format(projection.requiredNestEggAtFire)}
+            </li>
           </ul>
           <p className={`mt-3 font-semibold ${projection.fireReady ? "text-emerald-700" : "text-amber-700"}`}>
             {projection.fireReady ? "On track for FIRE" : "Off track: increase savings or move target date"}
