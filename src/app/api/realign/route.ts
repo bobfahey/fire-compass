@@ -39,8 +39,9 @@ export async function POST(request: NextRequest) {
 
   if (!upstream.ok) {
     const errorBody = await upstream.text();
+    console.error("Copilot API error:", upstream.status, errorBody);
     return NextResponse.json(
-      { error: `Copilot API request failed: ${upstream.status} ${errorBody}` },
+      { error: "Re-alignment service is temporarily unavailable." },
       { status: 502 },
     );
   }

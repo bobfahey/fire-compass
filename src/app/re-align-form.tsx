@@ -16,15 +16,20 @@ export function ReAlignForm({ context }: { context: string }) {
     setLoading(true);
     setResponse("");
 
-    const result = await fetch("/api/realign", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ prompt, context }),
-    });
+    try {
+      const result = await fetch("/api/realign", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ prompt, context }),
+      });
 
-    const body = (await result.json()) as { response?: string; error?: string };
-    setResponse(body.response ?? body.error ?? "No response.");
-    setLoading(false);
+      const body = (await result.json()) as { response?: string; error?: string };
+      setResponse(body.response ?? body.error ?? "No response.");
+    } catch {
+      setResponse("Network error — please check your connection and try again.");
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
