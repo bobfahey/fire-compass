@@ -19,8 +19,12 @@ const toNumber = (value: string): number => {
 
 const readCsv = async (baseDir: string, fileName: string): Promise<Record<string, string>[]> => {
   const fullPath = path.join(baseDir, fileName);
-  const content = await fs.readFile(fullPath, "utf8");
-  return parseCsv(content);
+  try {
+    const content = await fs.readFile(fullPath, "utf8");
+    return parseCsv(content);
+  } catch {
+    return [];
+  }
 };
 
 export const loadDataset = async (preferredDir?: string): Promise<Dataset> => {
