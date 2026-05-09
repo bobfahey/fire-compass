@@ -1,0 +1,62 @@
+import path from "node:path";
+import { promises as fs } from "node:fs";
+
+import { parseCsv } from "@/lib/csv";
+import { Account, SpendingCategory, Transaction } from "@/lib/types";
+
+interface Dataset {
+  transactions: Transaction[];
+  accounts: Account[];
+  categories: SpendingCategory[];
+  sourceDir: string;
+}
+
+const toNumber = (value: string): number => {
+  const normalized = value.replaceAll(/[$,]/g, "").trim();
+  const parsed = Number(normalized);
+  return Number.isFinite(parsed) ? parsed : 0;
+};
+
+const readCsv = async (baseDir: string, fileName: string): Promise<Record<string, string>[]> => {
+  const fullPath = path.join(baseDir, fileName);
+  const content = await fs.readFile(fullPath, "utf8");
+  return parseCsv(content);
+};
+
+export const loadDataset = async (preferredDir?: string): Promise<Dataset> => {
+  const root = process.cwd();
+  const fallbackDir = path.join(root, "sample-data");
+  const requested = preferredDir ? path.resolve(preferredDir) : path.join(root, "data");
+
+  const sourceDir = await fs
+    .access(path.join(requested, "transactions.csv"))
+    .then(() => requested)
+    .catch(() => fallbackDir);
+
+  const [transactionsRows, accountsRows, categoriesRows] = await Promise.all([
+    readCsv(sourceDir, "transactions.csv"),
+    readCsv(sourceDir, "accounts.csv"),
+    readCsv(sourceDir, "categories.csv"),
+  ]);
+
+  return {
+    sourceDir,
+    transactions: transactionsRows.map((row) => ({
+      date: row.date,
+      amount: toNumber(row.amount),
+      description: row.description,
+      category: row.category,
+      account: row.account,
+      owner: row.owner || "Unassigned",
+    })),
+    accounts: accountsRows.map((row) => ({
+      name: row.name,
+      balance: toNumber(row.balance),
+      type: row.type,
+    })),
+    categories: categoriesRows.map((row) => ({
+      name: row.name,
+      monthlyBudget: toNumber(row.monthlyBudget),
+    })),
+  };
+};

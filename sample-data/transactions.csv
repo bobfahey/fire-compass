@@ -1,0 +1,22 @@
+date,amount,description,category,account,owner
+2026-01-01,12000,Alex salary,Income,Checking,Alex
+2026-01-01,9800,Jamie salary,Income,Checking,Jamie
+2026-01-03,-1400,401k payroll contribution,401k,401k Plan,Alex
+2026-01-03,-1200,401k payroll contribution,401k,401k Plan,Jamie
+2026-01-05,-800,ESPP payroll deduction,ESPP,Brokerage,Alex
+2026-01-05,-400,529 transfer,529 Savings,Checking,Jamie
+2026-01-09,-6200,Mortgage payment,Debt Paydown,Checking,Alex
+2026-01-12,-1600,Groceries,Family Spending,Credit Card,Jamie
+2026-01-17,-750,Studio renovation,Studio Fund,Checking,Alex
+2026-01-19,-1800,Kids activities,Kid Costs,Credit Card,Jamie
+2026-01-21,-1200,Travel weekend,Discretionary,Credit Card,Alex
+2026-02-01,12000,Alex salary,Income,Checking,Alex
+2026-02-01,9800,Jamie salary,Income,Checking,Jamie
+2026-02-03,-1400,401k payroll contribution,401k,401k Plan,Alex
+2026-02-03,-1200,401k payroll contribution,401k,401k Plan,Jamie
+2026-02-05,-800,ESPP payroll deduction,ESPP,Brokerage,Alex
+2026-02-05,-400,529 transfer,529 Savings,Checking,Jamie
+2026-02-09,-6200,Mortgage payment,Debt Paydown,Checking,Alex
+2026-02-12,-1500,Groceries,Family Spending,Credit Card,Jamie
+2026-02-17,-500,Emergency fund transfer,Emergency Fund,Savings,Jamie
+2026-02-21,-1900,Travel weekend,Discretionary,Credit Card,Alex
