@@ -41,6 +41,11 @@ export interface GoalFunding {
   status: "on-track" | "underfunded" | "overfunded";
 }
 
+export interface MonthlyGoalFunding {
+  month: string; // "YYYY-MM"
+  funding: Record<GoalName, number>;
+}
+
 export interface LifePhase {
   name: LifePhaseName;
   years: number;
@@ -57,8 +62,32 @@ export interface FireProjection {
   fireReady: boolean;
 }
 
+export interface PortfolioDataPoint {
+  year: number;
+  projected: number;
+  required: number;
+}
+
 export interface CoupleAlignment {
   partner: string;
   topPrioritySavingsRate: number;
   discretionarySpendingRate: number;
 }
+
+export interface GoalConfig {
+  name: GoalName;
+  weight: number;
+  keywords: string[];
+}
+
+export interface PhaseConfig {
+  name: LifePhaseName;
+  years: number;
+  multiplier: number;
+}
+
+export interface FireConfig {
+  goals: GoalConfig[];
+  phases: PhaseConfig[];
+}
+

@@ -1,10 +1,15 @@
 import {
   Account,
   CoupleAlignment,
+  FireConfig,
   FireProjection,
+  GoalConfig,
   GoalFunding,
   GoalName,
   LifePhase,
+  MonthlyGoalFunding,
+  PhaseConfig,
+  PortfolioDataPoint,
   SpendingCategory,
   Transaction,
 } from "@/lib/types";
@@ -12,7 +17,7 @@ import {
 export const REAL_RETURN_RATE = 0.07;
 export const SAFE_WITHDRAWAL_RATE = 0.04;
 
-const phasePlan: Array<{ name: LifePhase["name"]; years: number; multiplier: number }> = [
+export const DEFAULT_PHASES: PhaseConfig[] = [
   { name: "Young Kids", years: 4, multiplier: 1.1 },
   { name: "Growing Kids", years: 6, multiplier: 1.2 },
   { name: "Peak Kid Costs", years: 5, multiplier: 1.35 },
@@ -20,7 +25,7 @@ const phasePlan: Array<{ name: LifePhase["name"]; years: number; multiplier: num
   { name: "Empty Nest", years: 20, multiplier: 0.8 },
 ];
 
-const goals: Array<{ name: GoalName; weight: number; keywords: string[] }> = [
+export const DEFAULT_GOALS: GoalConfig[] = [
   { name: "401k", weight: 0.26, keywords: ["401k", "retirement"] },
   { name: "ESPP", weight: 0.2, keywords: ["espp", "stock"] },
   { name: "529s", weight: 0.18, keywords: ["529", "college"] },
@@ -63,12 +68,13 @@ const annualize = (transactions: Transaction[]): { annualIncome: number; annualE
 export const buildLifePhases = (
   transactions: Transaction[],
   categories: SpendingCategory[],
+  phases: PhaseConfig[] = DEFAULT_PHASES,
 ): LifePhase[] => {
   const { annualExpense } = annualize(transactions);
   const categoryBudget = categories.reduce((sum, c) => sum + c.monthlyBudget, 0) * 12;
   const baseline = Math.max(annualExpense, categoryBudget);
 
-  return phasePlan.map((phase) => ({
+  return phases.map((phase) => ({
     name: phase.name,
     years: phase.years,
     annualSpending: Math.round(baseline * phase.multiplier),
@@ -111,9 +117,28 @@ export const buildFireProjection = (
   };
 };
 
-export const rankGoals = (transactions: Transaction[], annualSavings: number): GoalFunding[] => {
+export const buildPortfolioSeries = (projection: FireProjection): PortfolioDataPoint[] => {
+  const currentYear = new Date().getFullYear();
+  const points: PortfolioDataPoint[] = [];
+
+  for (let i = 0; i <= projection.yearsToFire; i += 1) {
+    const projected = Math.round(
+      projection.currentInvestableAssets * Math.pow(1 + REAL_RETURN_RATE, i) +
+        projection.annualSavings * ((Math.pow(1 + REAL_RETURN_RATE, i) - 1) / REAL_RETURN_RATE),
+    );
+    points.push({ year: currentYear + i, projected, required: projection.requiredNestEggAtFire });
+  }
+
+  return points;
+};
+
+export const rankGoals = (
+  transactions: Transaction[],
+  annualSavings: number,
+  goalConfig: GoalConfig[] = DEFAULT_GOALS,
+): GoalFunding[] => {
   const spendingByGoal = new Map<GoalName, number>(
-    goals.map((goal) => [goal.name, 0]),
+    goalConfig.map((goal) => [goal.name, 0]),
   );
 
   for (const transaction of transactions) {
@@ -122,7 +147,7 @@ export const rankGoals = (transactions: Transaction[], annualSavings: number): G
     }
 
     const haystack = `${transaction.category} ${transaction.description}`.toLowerCase();
-    const match = goals.find((goal) => goal.keywords.some((k) => haystack.includes(k)));
+    const match = goalConfig.find((goal) => goal.keywords.some((k) => haystack.includes(k)));
     if (!match) {
       continue;
     }
@@ -135,7 +160,7 @@ export const rankGoals = (transactions: Transaction[], annualSavings: number): G
     new Set(transactions.map((t) => t.date.slice(0, 7))).size,
   );
 
-  return goals.map((goal, index) => {
+  return goalConfig.map((goal, index) => {
     const annualTarget = annualSavings * goal.weight;
     const annualActual = ((spendingByGoal.get(goal.name) ?? 0) / monthsCovered) * 12;
     const ratio = annualTarget > 0 ? annualActual / annualTarget : 1;
@@ -148,6 +173,40 @@ export const rankGoals = (transactions: Transaction[], annualSavings: number): G
       status: ratio < 0.85 ? "underfunded" : ratio > 1.15 ? "overfunded" : "on-track",
     };
   });
+};
+
+export const buildMonthlyGoalFunding = (
+  transactions: Transaction[],
+  goalConfig: GoalConfig[] = DEFAULT_GOALS,
+): MonthlyGoalFunding[] => {
+  const byMonth = new Map<string, Map<GoalName, number>>();
+
+  for (const tx of transactions) {
+    if (tx.amount >= 0) {
+      continue;
+    }
+
+    const month = tx.date.slice(0, 7);
+    if (!byMonth.has(month)) {
+      byMonth.set(month, new Map(goalConfig.map((g) => [g.name, 0])));
+    }
+
+    const haystack = `${tx.category} ${tx.description}`.toLowerCase();
+    const match = goalConfig.find((g) => g.keywords.some((k) => haystack.includes(k)));
+    if (!match) {
+      continue;
+    }
+
+    const monthMap = byMonth.get(month)!;
+    monthMap.set(match.name, (monthMap.get(match.name) ?? 0) + Math.abs(tx.amount));
+  }
+
+  return [...byMonth.entries()]
+    .sort(([a], [b]) => a.localeCompare(b))
+    .map(([month, goalMap]) => ({
+      month,
+      funding: Object.fromEntries(goalMap.entries()) as Record<GoalName, number>,
+    }));
 };
 
 export const detectPriorityDrift = (funding: GoalFunding[]): string[] => {
@@ -214,3 +273,9 @@ export const coupleAlignmentSummary = (alignment: CoupleAlignment[]): string => 
 
   return `Alignment drift detected: ${first.partner} vs ${second.partner} differs by ${topGap.toFixed(1)} pts on top-priority savings and ${spendGap.toFixed(1)} pts on discretionary spending.`;
 };
+
+export const DEFAULT_CONFIG: FireConfig = {
+  goals: DEFAULT_GOALS,
+  phases: DEFAULT_PHASES,
+};
+

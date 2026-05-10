@@ -45,3 +45,6 @@ next-env.d.ts
 *snapshot*
 !/sample-data/
 !/sample-data/*.csv
+
+# Local FIRE configuration overrides
+/fire-config.json
