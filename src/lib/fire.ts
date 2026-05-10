@@ -95,8 +95,8 @@ export const simulateRequiredNestEgg = (
 
   for (const phase of phases) {
     for (let y = 0; y < phase.years; y++) {
-      yearIndex++;
       presentValue += phase.annualSpending / Math.pow(1 + realReturnRate, yearIndex);
+      yearIndex++;
     }
   }
 

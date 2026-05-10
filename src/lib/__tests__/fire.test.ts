@@ -119,9 +119,9 @@ describe("simulateRequiredNestEgg", () => {
     const phases = [{ name: "Only" as const, years, annualSpending: spending }];
     const result = simulateRequiredNestEgg(phases, REAL_RETURN_RATE);
 
-    // Manual PV calculation
+    // Manual PV calculation (annuity-due: first withdrawal at t=0, no discount)
     let expected = 0;
-    for (let i = 1; i <= years; i++) {
+    for (let i = 0; i < years; i++) {
       expected += spending / Math.pow(1 + REAL_RETURN_RATE, i);
     }
     expect(result).toBe(Math.round(expected));
