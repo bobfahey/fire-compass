@@ -45,14 +45,16 @@ export const loadDataset = async (preferredDir?: string): Promise<Dataset> => {
 
   return {
     sourceDir,
-    transactions: transactionsRows.map((row) => ({
-      date: row.date,
-      amount: toNumber(row.amount),
-      description: row.description,
-      category: row.category,
-      account: row.account,
-      owner: row.owner || "Unassigned",
-    })),
+    transactions: transactionsRows
+      .filter((row) => (row.excluded ?? "").toLowerCase() !== "true")
+      .map((row) => ({
+        date: row.date,
+        amount: toNumber(row.amount),
+        description: row.description || row.name || "",
+        category: row.category,
+        account: row.account,
+        owner: row.owner || "Unassigned",
+      })),
     accounts: accountsRows.map((row) => ({
       name: row.name,
       balance: toNumber(row.balance),
