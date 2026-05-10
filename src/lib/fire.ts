@@ -81,6 +81,28 @@ export const buildLifePhases = (
   }));
 };
 
+/**
+ * Present-value drawdown simulation: sums each phase-year's spending
+ * discounted back to the FIRE date, giving a tighter nest-egg target
+ * than the old "max-phase / SWR" rule.
+ */
+export const simulateRequiredNestEgg = (
+  phases: LifePhase[],
+  realReturnRate: number = REAL_RETURN_RATE,
+): number => {
+  let presentValue = 0;
+  let yearIndex = 0;
+
+  for (const phase of phases) {
+    for (let y = 0; y < phase.years; y++) {
+      yearIndex++;
+      presentValue += phase.annualSpending / Math.pow(1 + realReturnRate, yearIndex);
+    }
+  }
+
+  return Math.round(presentValue);
+};
+
 export const buildFireProjection = (
   targetDate: string,
   accounts: Account[],
@@ -103,8 +125,7 @@ export const buildFireProjection = (
       annualSavings * ((Math.pow(1 + REAL_RETURN_RATE, yearsToFire) - 1) / REAL_RETURN_RATE),
   );
 
-  const maxPhaseSpending = Math.max(...phases.map((p) => p.annualSpending), 0);
-  const requiredNestEggAtFire = Math.round(maxPhaseSpending / SAFE_WITHDRAWAL_RATE);
+  const requiredNestEggAtFire = simulateRequiredNestEgg(phases);
 
   return {
     targetDate,
