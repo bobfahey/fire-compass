@@ -29,7 +29,7 @@ export const DEFAULT_GOALS: GoalConfig[] = [
   { name: "401k", weight: 0.26, keywords: ["401k", "retirement"] },
   { name: "ESPP", weight: 0.2, keywords: ["espp", "stock"] },
   { name: "529s", weight: 0.18, keywords: ["529", "college"] },
-  { name: "Emergency Fund", weight: 0.16, keywords: ["emergency", "cash reserve"] },
+  { name: "Emergency Fund", weight: 0.16, keywords: ["emergency", "cash reserve", "ally"] },
   { name: "Studio Fund", weight: 0.1, keywords: ["studio"] },
   { name: "Debt Paydown", weight: 0.1, keywords: ["debt", "loan", "mortgage"] },
 ];
@@ -157,17 +157,32 @@ export const rankGoals = (
   transactions: Transaction[],
   annualSavings: number,
   goalConfig: GoalConfig[] = DEFAULT_GOALS,
+  accounts: Account[] = [],
 ): GoalFunding[] => {
+  // Track annual contribution rate from transactions (expenses/outflows only)
   const spendingByGoal = new Map<GoalName, number>(
     goalConfig.map((goal) => [goal.name, 0]),
   );
+
+  // Track account balances matched to goals
+  const balanceByGoal = new Map<GoalName, number>();
+
+  // Match accounts to goals by keywords
+  for (const account of accounts) {
+    const haystack = `${account.name} ${account.type}`.toLowerCase();
+    const match = goalConfig.find((goal) => goal.keywords.some((k) => haystack.includes(k)));
+    if (match && account.balance > 0) {
+      balanceByGoal.set(match.name, (balanceByGoal.get(match.name) ?? 0) + account.balance);
+    }
+  }
 
   for (const transaction of transactions) {
     if (transaction.amount >= 0) {
       continue;
     }
 
-    const haystack = `${transaction.category} ${transaction.description}`.toLowerCase();
+    const haystack =
+      `${transaction.category} ${transaction.description} ${transaction.account}`.toLowerCase();
     const match = goalConfig.find((goal) => goal.keywords.some((k) => haystack.includes(k)));
     if (!match) {
       continue;
@@ -183,7 +198,12 @@ export const rankGoals = (
 
   return goalConfig.map((goal, index) => {
     const annualTarget = annualSavings * goal.weight;
-    const annualActual = ((spendingByGoal.get(goal.name) ?? 0) / monthsCovered) * 12;
+    const accountBalance = balanceByGoal.get(goal.name);
+    // If we have an account balance for this goal, use it as the "actual" value
+    // Otherwise fall back to annualized transaction-based estimate
+    const annualActual = accountBalance != null
+      ? accountBalance
+      : ((spendingByGoal.get(goal.name) ?? 0) / monthsCovered) * 12;
     const ratio = annualTarget > 0 ? annualActual / annualTarget : 1;
 
     return {
@@ -192,6 +212,7 @@ export const rankGoals = (
       annualTarget: Math.round(annualTarget),
       annualActual: Math.round(annualActual),
       status: ratio < 0.85 ? "underfunded" : ratio > 1.15 ? "overfunded" : "on-track",
+      fundingSource: accountBalance != null ? "account-balance" as const : "transactions" as const,
     };
   });
 };

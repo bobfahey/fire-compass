@@ -30,6 +30,7 @@ const makeTransaction = (
   category: "Income",
   account: "Checking",
   owner: "Alex",
+  transactionType: "regular",
   ...overrides,
 });
 
