@@ -54,6 +54,7 @@ export const loadDataset = async (preferredDir?: string): Promise<Dataset> => {
         category: row.category,
         account: row.account,
         owner: row.owner || "Unassigned",
+        transactionType: row.type || "regular",
       })),
     accounts: accountsRows.map((row) => ({
       name: row.name,

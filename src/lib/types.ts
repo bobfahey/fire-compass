@@ -14,6 +14,7 @@ export interface Transaction {
   category: string;
   account: string;
   owner: string;
+  transactionType: string;
 }
 
 export interface Account {
@@ -33,6 +34,7 @@ export interface GoalFunding {
   annualTarget: number;
   annualActual: number;
   status: "on-track" | "underfunded" | "overfunded";
+  fundingSource: "account-balance" | "transactions";
 }
 
 export interface MonthlyGoalFunding {

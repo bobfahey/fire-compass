@@ -40,7 +40,7 @@ export default async function Home({
   const phases = buildLifePhases(dataset.transactions, dataset.categories, config.phases);
   const projection = buildFireProjection(targetDate, dataset.accounts, dataset.transactions, phases);
   const portfolioSeries = buildPortfolioSeries(projection);
-  const goalFunding = rankGoals(dataset.transactions, projection.annualSavings, config.goals);
+  const goalFunding = rankGoals(dataset.transactions, projection.annualSavings, config.goals, dataset.accounts);
   const priorityDrift = detectPriorityDrift(goalFunding);
   const alignment = buildCoupleAlignment(dataset.transactions);
   const alignmentNote = coupleAlignmentSummary(alignment);
@@ -117,8 +117,12 @@ export default async function Home({
               </div>
               <div className="flex items-center gap-4">
                 <div className="text-right">
-                  <p className="font-medium tabular-nums">{money.format(row.annualActual)}/yr</p>
-                  <p className="text-xs text-zinc-500">actual</p>
+                  <p className="font-medium tabular-nums">
+                    {money.format(row.annualActual)}{row.fundingSource === "transactions" ? "/yr" : ""}
+                  </p>
+                  <p className="text-xs text-zinc-500">
+                    {row.fundingSource === "account-balance" ? "balance" : "actual"}
+                  </p>
                 </div>
                 <span
                   className={`rounded-full px-3 py-1 text-xs font-semibold ${
