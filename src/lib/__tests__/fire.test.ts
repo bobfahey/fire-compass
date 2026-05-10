@@ -13,6 +13,7 @@ import {
   rankGoals,
   REAL_RETURN_RATE,
   SAFE_WITHDRAWAL_RATE,
+  simulateRequiredNestEgg,
 } from "@/lib/fire";
 import { Account, GoalFunding, SpendingCategory, Transaction } from "@/lib/types";
 
@@ -92,6 +93,55 @@ describe("buildLifePhases", () => {
 });
 
 // ---------------------------------------------------------------------------
+// simulateRequiredNestEgg
+// ---------------------------------------------------------------------------
+
+describe("simulateRequiredNestEgg", () => {
+  it("returns 0 when all phases have zero spending", () => {
+    const zeroPhases = DEFAULT_PHASES.map((p) => ({ ...p, name: p.name, years: p.years, annualSpending: 0 }));
+    expect(simulateRequiredNestEgg(zeroPhases)).toBe(0);
+  });
+
+  it("returns 0 for an empty phase list", () => {
+    expect(simulateRequiredNestEgg([])).toBe(0);
+  });
+
+  it("is less conservative than max-phase / SWR for mixed-spending phases", () => {
+    const phases = buildLifePhases(twoMonthTransactions, baseCategories);
+    const maxSpending = Math.max(...phases.map((p) => p.annualSpending));
+    const oldNaive = Math.round(maxSpending / SAFE_WITHDRAWAL_RATE);
+    expect(simulateRequiredNestEgg(phases)).toBeLessThan(oldNaive);
+  });
+
+  it("equals a single annuity PV for a single phase", () => {
+    const spending = 50_000;
+    const years = 10;
+    const phases = [{ name: "Only" as const, years, annualSpending: spending }];
+    const result = simulateRequiredNestEgg(phases, REAL_RETURN_RATE);
+
+    // Manual PV calculation (annuity-due: first withdrawal at t=0, no discount)
+    let expected = 0;
+    for (let i = 0; i < years; i++) {
+      expected += spending / Math.pow(1 + REAL_RETURN_RATE, i);
+    }
+    expect(result).toBe(Math.round(expected));
+  });
+
+  it("accounts for phase ordering (front-loaded spending needs more)", () => {
+    const highThenLow = [
+      { name: "High" as const, years: 5, annualSpending: 100_000 },
+      { name: "Low" as const, years: 5, annualSpending: 50_000 },
+    ];
+    const lowThenHigh = [
+      { name: "Low" as const, years: 5, annualSpending: 50_000 },
+      { name: "High" as const, years: 5, annualSpending: 100_000 },
+    ];
+    // Front-loaded high spending is discounted less, so requires more
+    expect(simulateRequiredNestEgg(highThenLow)).toBeGreaterThan(simulateRequiredNestEgg(lowThenHigh));
+  });
+});
+
+// ---------------------------------------------------------------------------
 // buildFireProjection
 // ---------------------------------------------------------------------------
 
@@ -131,10 +181,13 @@ describe("buildFireProjection", () => {
     expect(projection.fireReady).toBe(false);
   });
 
-  it("uses 4% SWR for required nest egg against max phase spending", () => {
+  it("sizes nest egg via present-value drawdown simulation, not max-phase / SWR", () => {
     const projection = buildFireProjection("2038-01-01", baseAccounts, twoMonthTransactions, phases);
     const maxSpending = Math.max(...phases.map((p) => p.annualSpending));
-    expect(projection.requiredNestEggAtFire).toBe(Math.round(maxSpending / SAFE_WITHDRAWAL_RATE));
+    const oldNaive = Math.round(maxSpending / SAFE_WITHDRAWAL_RATE);
+    // New simulation should produce a smaller (less conservative) number
+    expect(projection.requiredNestEggAtFire).toBeLessThan(oldNaive);
+    expect(projection.requiredNestEggAtFire).toBe(simulateRequiredNestEgg(phases));
   });
 
   it("compounds at REAL_RETURN_RATE", () => {
