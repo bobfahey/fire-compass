@@ -31,8 +31,15 @@ Only include categories that have a budget amount set. Ignore categories with no
 Return ONLY valid JSON. No markdown, no explanation. Example:
 [{"name":"Housing","monthlyBudget":6500}]`;
 
+const CLASSIFY_PROMPT = `Look at this screenshot and determine if it shows:
+- "accounts" — a list of financial accounts with balances (bank accounts, investments, credit cards, loans)
+- "categories" — a list of spending/budget categories with amounts
+
+Respond with ONLY a JSON object: {"classification": "accounts"} or {"classification": "categories"}
+If the image doesn't clearly show either, respond: {"classification": "unknown"}`;
+
 interface ExtractRequest {
-  type: "accounts" | "categories";
+  type: "accounts" | "categories" | "classify";
   image: string; // base64 data URL
 }
 
@@ -52,7 +59,12 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "Missing 'type' or 'image' in request body." }, { status: 400 });
   }
 
-  const systemPrompt = type === "accounts" ? ACCOUNTS_PROMPT : CATEGORIES_PROMPT;
+  const isClassify = type === "classify";
+  const systemPrompt = isClassify
+    ? CLASSIFY_PROMPT
+    : type === "accounts"
+      ? ACCOUNTS_PROMPT
+      : CATEGORIES_PROMPT;
 
   try {
     const response = await fetch(GITHUB_MODELS_URL, {
@@ -74,13 +86,15 @@ export async function POST(request: NextRequest) {
               },
               {
                 type: "text",
-                text: `Extract the ${type} data from this screenshot.`,
+                text: isClassify
+                  ? "What type of financial data does this screenshot show?"
+                  : `Extract the ${type} data from this screenshot.`,
               },
             ],
           },
         ],
         temperature: 0,
-        max_tokens: 2000,
+        max_tokens: isClassify ? 100 : 2000,
       }),
     });
 
@@ -96,11 +110,13 @@ export async function POST(request: NextRequest) {
       choices: { message: { content: string } }[];
     };
 
-    const content = result.choices?.[0]?.message?.content ?? "[]";
-
-    // Strip markdown fences if the model wrapped the JSON
+    const content = result.choices?.[0]?.message?.content ?? "{}";
     const cleaned = content.replace(/^```(?:json)?\s*/i, "").replace(/\s*```$/i, "").trim();
     const parsed = JSON.parse(cleaned);
+
+    if (isClassify) {
+      return NextResponse.json({ classification: parsed.classification ?? "unknown" });
+    }
 
     return NextResponse.json({ type, data: parsed });
   } catch (err) {
