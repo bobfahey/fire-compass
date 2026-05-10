@@ -7,6 +7,7 @@ import {
   buildMonthlyGoalFunding,
   buildPortfolioSeries,
   coupleAlignmentSummary,
+  detectPriorityDrift,
   REAL_RETURN_RATE,
   rankGoals,
   SAFE_WITHDRAWAL_RATE,
@@ -182,8 +183,6 @@ export default async function Home({
 // ---------------------------------------------------------------------------
 // Inline client component for the target-date picker
 // ---------------------------------------------------------------------------
-import { detectPriorityDrift } from "@/lib/fire";
-
 function TargetDateForm({ current }: { current: string }) {
   return (
     <form method="GET" className="flex items-center gap-3">
