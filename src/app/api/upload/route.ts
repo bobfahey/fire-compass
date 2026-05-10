@@ -29,12 +29,19 @@ const extractDataFromImage = async (
   return result.data;
 };
 
+const escapeCsvField = (value: string): string => {
+  if (value.includes(",") || value.includes('"') || value.includes("\n")) {
+    return `"${value.replace(/"/g, '""')}"`;
+  }
+  return value;
+};
+
 const toCsv = (rows: Record<string, string | number>[]): string => {
-  if (rows.length === 0) return "";
+  if (!Array.isArray(rows) || rows.length === 0) return "";
   const headers = Object.keys(rows[0]);
-  const lines = [headers.join(",")];
+  const lines = [headers.map(escapeCsvField).join(",")];
   for (const row of rows) {
-    lines.push(headers.map((h) => String(row[h] ?? "")).join(","));
+    lines.push(headers.map((h) => escapeCsvField(String(row[h] ?? ""))).join(","));
   }
   return lines.join("\n");
 };
@@ -56,7 +63,8 @@ export async function POST(request: NextRequest) {
   const formData = await request.formData();
   const uploaded: string[] = [];
   const errors: string[] = [];
-  const imagesToProcess: { type: "accounts" | "categories"; base64: string }[] = [];
+  const imagesToProcess: { type: "accounts" | "categories"; base64: string; fileName: string }[] = [];
+  const imageTypeSeen = new Set<string>();
 
   for (const [, value] of formData.entries()) {
     if (!(value instanceof File)) {
@@ -94,10 +102,15 @@ export async function POST(request: NextRequest) {
         );
         continue;
       }
+      if (imageTypeSeen.has(type)) {
+        errors.push(`Multiple ${type} screenshots uploaded — only the first one will be used.`);
+        continue;
+      }
+      imageTypeSeen.add(type);
       const buffer = Buffer.from(await value.arrayBuffer());
-      const mimeType = ext === ".png" ? "image/png" : "image/jpeg";
+      const mimeType = ext === ".png" ? "image/png" : ext === ".webp" ? "image/webp" : "image/jpeg";
       const base64 = `data:${mimeType};base64,${buffer.toString("base64")}`;
-      imagesToProcess.push({ type, base64 });
+      imagesToProcess.push({ type, base64, fileName });
       continue;
     }
 
@@ -108,6 +121,10 @@ export async function POST(request: NextRequest) {
   for (const { type, base64 } of imagesToProcess) {
     try {
       const data = await extractDataFromImage(type, base64, request);
+      if (!Array.isArray(data) || data.length === 0) {
+        errors.push(`Could not extract ${type} data from screenshot — no items found.`);
+        continue;
+      }
       const csv = toCsv(data);
       const csvFileName = type === "accounts" ? "accounts.csv" : "categories.csv";
       await fs.writeFile(path.join(UPLOAD_DIR, csvFileName), csv, "utf8");
