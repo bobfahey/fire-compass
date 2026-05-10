@@ -1,10 +1,4 @@
-export type GoalName =
-  | "401k"
-  | "ESPP"
-  | "529s"
-  | "Emergency Fund"
-  | "Studio Fund"
-  | "Debt Paydown";
+export type GoalName = string;
 
 export type LifePhaseName =
   | "Young Kids"

@@ -46,6 +46,29 @@ const toCsv = (rows: Record<string, string | number>[]): string => {
   return lines.join("\n");
 };
 
+const classifyScreenshot = async (
+  imageBase64: string,
+  request: NextRequest,
+): Promise<"accounts" | "categories" | null> => {
+  try {
+    const origin = request.nextUrl.origin;
+    const response = await fetch(`${origin}/api/extract`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ type: "classify", image: imageBase64 }),
+    });
+
+    if (!response.ok) return null;
+    const result = (await response.json()) as { classification?: string };
+    if (result.classification === "accounts" || result.classification === "categories") {
+      return result.classification;
+    }
+    return null;
+  } catch {
+    return null;
+  }
+};
+
 const inferImageType = (fileName: string): "accounts" | "categories" | null => {
   const lower = fileName.toLowerCase();
   if (lower.includes("account") || lower.includes("balance") || lower.includes("net-worth")) {
@@ -64,6 +87,7 @@ export async function POST(request: NextRequest) {
   const uploaded: string[] = [];
   const errors: string[] = [];
   const imagesToProcess: { type: "accounts" | "categories"; base64: string; fileName: string }[] = [];
+  const unknownImages: { base64: string; fileName: string }[] = [];
   const imageTypeSeen = new Set<string>();
 
   for (const [, value] of formData.entries()) {
@@ -95,26 +119,40 @@ export async function POST(request: NextRequest) {
 
     // Handle image files
     if (IMAGE_EXTENSIONS.has(ext)) {
-      const type = inferImageType(fileName);
-      if (!type) {
-        errors.push(
-          `Could not determine type for "${fileName}". Name it with "account" or "category" in the filename.`,
-        );
-        continue;
-      }
-      if (imageTypeSeen.has(type)) {
-        errors.push(`Multiple ${type} screenshots uploaded — only the first one will be used.`);
-        continue;
-      }
-      imageTypeSeen.add(type);
       const buffer = Buffer.from(await value.arrayBuffer());
       const mimeType = ext === ".png" ? "image/png" : ext === ".webp" ? "image/webp" : "image/jpeg";
       const base64 = `data:${mimeType};base64,${buffer.toString("base64")}`;
-      imagesToProcess.push({ type, base64, fileName });
+
+      const type = inferImageType(fileName);
+      if (type) {
+        if (imageTypeSeen.has(type)) {
+          errors.push(`Multiple ${type} screenshots uploaded — only the first one will be used.`);
+          continue;
+        }
+        imageTypeSeen.add(type);
+        imagesToProcess.push({ type, base64, fileName });
+      } else {
+        unknownImages.push({ base64, fileName });
+      }
       continue;
     }
 
     errors.push(`Ignored unsupported file: ${fileName}`);
+  }
+
+  // Auto-classify unknown screenshots via GPT-4o vision
+  for (const { base64, fileName } of unknownImages) {
+    const classifyType = await classifyScreenshot(base64, request);
+    if (!classifyType) {
+      errors.push(`Could not determine what "${fileName}" shows. Try renaming with "account" or "category".`);
+      continue;
+    }
+    if (imageTypeSeen.has(classifyType)) {
+      errors.push(`Multiple ${classifyType} screenshots detected — only the first one will be used.`);
+      continue;
+    }
+    imageTypeSeen.add(classifyType);
+    imagesToProcess.push({ type: classifyType, base64, fileName });
   }
 
   // Process screenshots through GPT-4o vision
