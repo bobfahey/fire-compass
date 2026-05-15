@@ -4,7 +4,7 @@ import { promises as fs } from "node:fs";
 import { DEFAULT_CONFIG } from "@/lib/fire";
 import { FireConfig } from "@/lib/types";
 
-const CONFIG_PATH = path.join(process.cwd(), "fire-config.json");
+const CONFIG_PATH = process.env.FIRE_CONFIG_PATH || path.join(process.cwd(), "fire-config.json");
 
 export async function loadConfig(): Promise<FireConfig> {
   try {
