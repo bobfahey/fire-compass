@@ -52,12 +52,16 @@ const twoMonthTransactions: Transaction[] = [
   makeTransaction({ date: "2026-01-03", amount: -1_400, description: "401k contribution", category: "401k", owner: "Alex" }),
   makeTransaction({ date: "2026-01-03", amount: -1_200, description: "401k contribution", category: "401k", owner: "Jamie" }),
   makeTransaction({ date: "2026-01-05", amount: -800, description: "ESPP deduction", category: "ESPP", owner: "Alex" }),
+  makeTransaction({ date: "2026-01-07", amount: -500, description: "Mega backdoor after-tax 401k conversion", category: "Mega Backdoor Roth", owner: "Alex" }),
+  makeTransaction({ date: "2026-01-08", amount: -300, description: "Roth IRA contribution", category: "Roth IRA", owner: "Jamie" }),
   makeTransaction({ date: "2026-01-09", amount: -6_200, description: "Mortgage payment", category: "Debt Paydown", owner: "Alex" }),
   makeTransaction({ date: "2026-02-01", amount: 12_000, owner: "Alex" }),
   makeTransaction({ date: "2026-02-01", amount: 9_800, owner: "Jamie" }),
   makeTransaction({ date: "2026-02-03", amount: -1_400, description: "401k contribution", category: "401k", owner: "Alex" }),
   makeTransaction({ date: "2026-02-03", amount: -1_200, description: "401k contribution", category: "401k", owner: "Jamie" }),
   makeTransaction({ date: "2026-02-05", amount: -800, description: "ESPP deduction", category: "ESPP", owner: "Alex" }),
+  makeTransaction({ date: "2026-02-07", amount: -500, description: "Mega backdoor after-tax 401k conversion", category: "Mega Backdoor Roth", owner: "Alex" }),
+  makeTransaction({ date: "2026-02-08", amount: -300, description: "Roth IRA contribution", category: "Roth IRA", owner: "Jamie" }),
   makeTransaction({ date: "2026-02-09", amount: -6_200, description: "Mortgage payment", category: "Debt Paydown", owner: "Alex" }),
 ];
 
@@ -281,6 +285,46 @@ describe("rankGoals", () => {
     const customGoals = [{ name: "401k" as const, weight: 1.0, keywords: ["401k"] }];
     const result = rankGoals(twoMonthTransactions, 50_000, customGoals);
     expect(result).toHaveLength(1);
+  });
+
+  it("matches Roth IRA transactions to Roth IRA goal", () => {
+    const txns: Transaction[] = [
+      makeTransaction({ date: "2026-01-01", amount: -500, description: "Roth IRA contribution", category: "Roth IRA" }),
+    ];
+    const result = rankGoals(txns, 50_000);
+    const row = result.find((r) => r.goal === "Roth IRA")!;
+    expect(row.annualActual).toBeGreaterThan(0);
+  });
+
+  it("matches Mega Backdoor Roth transactions correctly", () => {
+    const txns: Transaction[] = [
+      makeTransaction({ date: "2026-01-01", amount: -1_000, description: "Mega backdoor after-tax 401k conversion", category: "Mega Backdoor Roth" }),
+    ];
+    const result = rankGoals(txns, 50_000);
+    const row = result.find((r) => r.goal === "Mega Backdoor Roth")!;
+    expect(row.annualActual).toBeGreaterThan(0);
+  });
+
+  it("does not misclassify 401k transactions as Mega Backdoor Roth", () => {
+    const txns: Transaction[] = [
+      makeTransaction({ date: "2026-01-01", amount: -1_400, description: "401k contribution", category: "401k" }),
+    ];
+    const result = rankGoals(txns, 50_000);
+    const row401k = result.find((r) => r.goal === "401k")!;
+    const rowMega = result.find((r) => r.goal === "Mega Backdoor Roth")!;
+    expect(row401k.annualActual).toBeGreaterThan(0);
+    expect(rowMega.annualActual).toBe(0);
+  });
+
+  it("does not misclassify Roth IRA as Mega Backdoor Roth", () => {
+    const txns: Transaction[] = [
+      makeTransaction({ date: "2026-01-01", amount: -500, description: "Backdoor Roth IRA contribution", category: "IRA contribution" }),
+    ];
+    const result = rankGoals(txns, 50_000);
+    const rowIra = result.find((r) => r.goal === "Roth IRA")!;
+    const rowMega = result.find((r) => r.goal === "Mega Backdoor Roth")!;
+    expect(rowIra.annualActual).toBeGreaterThan(0);
+    expect(rowMega.annualActual).toBe(0);
   });
 });
 
