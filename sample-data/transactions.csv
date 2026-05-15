@@ -5,6 +5,8 @@ date,amount,description,category,account,owner
 2026-01-03,-1200,401k payroll contribution,401k,401k Plan,Jamie
 2026-01-05,-800,ESPP payroll deduction,ESPP,Brokerage,Alex
 2026-01-05,-400,529 transfer,529 Savings,Checking,Jamie
+2026-01-07,-500,Mega backdoor after-tax 401k conversion,Mega Backdoor Roth,401k Plan,Alex
+2026-01-08,-300,Roth IRA contribution,Roth IRA,Roth IRA,Jamie
 2026-01-09,-6200,Mortgage payment,Debt Paydown,Checking,Alex
 2026-01-12,-1600,Groceries,Family Spending,Credit Card,Jamie
 2026-01-17,-750,Studio renovation,Studio Fund,Checking,Alex
@@ -16,6 +18,8 @@ date,amount,description,category,account,owner
 2026-02-03,-1200,401k payroll contribution,401k,401k Plan,Jamie
 2026-02-05,-800,ESPP payroll deduction,ESPP,Brokerage,Alex
 2026-02-05,-400,529 transfer,529 Savings,Checking,Jamie
+2026-02-07,-500,Mega backdoor after-tax 401k conversion,Mega Backdoor Roth,401k Plan,Alex
+2026-02-08,-300,Roth IRA contribution,Roth IRA,Roth IRA,Jamie
 2026-02-09,-6200,Mortgage payment,Debt Paydown,Checking,Alex
 2026-02-12,-1500,Groceries,Family Spending,Credit Card,Jamie
 2026-02-17,-500,Emergency fund transfer,Emergency Fund,Savings,Jamie

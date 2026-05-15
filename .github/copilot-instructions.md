@@ -51,7 +51,7 @@ The projection engine uses these assumptions (configurable via `fire-config.json
 - **5 life phases:** Young Kids, Growing Kids, Peak Kid Costs, Launching Kids, Empty Nest
 - **Real return rate:** 7%
 - **Safe withdrawal rate:** 4%
-- **Goal priority order:** 401k, ESPP, 529s, Emergency Fund, Studio Fund, Debt Paydown
+- **Goal priority order:** 401k, Mega Backdoor Roth, ESPP, Roth IRA, 529s, Emergency Fund, Studio Fund, Debt Paydown
 - **Priority drift detection:** Flags when actual spending diverges from stated priorities
 - **Couple alignment:** Compares partners' goal rankings and highlights divergence
 

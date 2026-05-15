@@ -23,7 +23,7 @@ export async function POST(request: NextRequest) {
   if (!token) {
     return NextResponse.json({
       advice:
-        "Copilot key is not configured. Suggested re-alignment: revisit the top 3 priorities first, then cap lower-priority goals until 401k/ESPP/529 contributions are back on target.",
+        "Copilot key is not configured. Suggested re-alignment: revisit the top 3 priorities first, then cap lower-priority goals until 401k/Mega Backdoor Roth/ESPP/Roth IRA/529 contributions are back on target.",
     });
   }
 

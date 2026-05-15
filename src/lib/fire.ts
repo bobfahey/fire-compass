@@ -26,13 +26,40 @@ export const DEFAULT_PHASES: PhaseConfig[] = [
 ];
 
 export const DEFAULT_GOALS: GoalConfig[] = [
-  { name: "401k", weight: 0.26, keywords: ["401k", "retirement"] },
-  { name: "ESPP", weight: 0.2, keywords: ["espp", "stock"] },
-  { name: "529s", weight: 0.18, keywords: ["529", "college"] },
-  { name: "Emergency Fund", weight: 0.16, keywords: ["emergency", "cash reserve", "ally"] },
-  { name: "Studio Fund", weight: 0.1, keywords: ["studio"] },
-  { name: "Debt Paydown", weight: 0.1, keywords: ["debt", "loan", "mortgage"] },
+  { name: "401k", weight: 0.16, keywords: ["401k", "401(k)"] },
+  { name: "Mega Backdoor Roth", weight: 0.10, keywords: ["mega backdoor", "after-tax 401k", "after tax 401k", "in-plan conversion"] },
+  { name: "ESPP", weight: 0.18, keywords: ["espp", "stock purchase"] },
+  { name: "Roth IRA", weight: 0.08, keywords: ["roth ira", "backdoor roth ira", "ira contribution"] },
+  { name: "529s", weight: 0.16, keywords: ["529", "college"] },
+  { name: "Emergency Fund", weight: 0.14, keywords: ["emergency", "cash reserve", "ally"] },
+  { name: "Studio Fund", weight: 0.08, keywords: ["studio"] },
+  { name: "Debt Paydown", weight: 0.10, keywords: ["debt", "loan", "mortgage"] },
 ];
+
+const findGoalMatch = (
+  goalConfig: GoalConfig[],
+  haystack: string,
+): GoalConfig | undefined => {
+  let bestMatch: { goal: GoalConfig; keywordLength: number; index: number } | undefined;
+
+  goalConfig.forEach((goal, index) => {
+    goal.keywords.forEach((keyword) => {
+      if (!haystack.includes(keyword)) {
+        return;
+      }
+
+      if (
+        !bestMatch ||
+        keyword.length > bestMatch.keywordLength ||
+        (keyword.length === bestMatch.keywordLength && index < bestMatch.index)
+      ) {
+        bestMatch = { goal, keywordLength: keyword.length, index };
+      }
+    });
+  });
+
+  return bestMatch?.goal;
+};
 
 const annualize = (transactions: Transaction[]): { annualIncome: number; annualExpense: number } => {
   if (transactions.length === 0) {
@@ -170,7 +197,7 @@ export const rankGoals = (
   // Match accounts to goals by keywords
   for (const account of accounts) {
     const haystack = `${account.name} ${account.type}`.toLowerCase();
-    const match = goalConfig.find((goal) => goal.keywords.some((k) => haystack.includes(k)));
+    const match = findGoalMatch(goalConfig, haystack);
     if (match && account.balance > 0) {
       balanceByGoal.set(match.name, (balanceByGoal.get(match.name) ?? 0) + account.balance);
     }
@@ -183,7 +210,7 @@ export const rankGoals = (
 
     const haystack =
       `${transaction.category} ${transaction.description} ${transaction.account}`.toLowerCase();
-    const match = goalConfig.find((goal) => goal.keywords.some((k) => haystack.includes(k)));
+    const match = findGoalMatch(goalConfig, haystack);
     if (!match) {
       continue;
     }
@@ -234,7 +261,7 @@ export const buildMonthlyGoalFunding = (
     }
 
     const haystack = `${tx.category} ${tx.description}`.toLowerCase();
-    const match = goalConfig.find((g) => g.keywords.some((k) => haystack.includes(k)));
+    const match = findGoalMatch(goalConfig, haystack);
     if (!match) {
       continue;
     }
@@ -271,7 +298,7 @@ export const detectPriorityDrift = (funding: GoalFunding[]): string[] => {
 
 export const buildCoupleAlignment = (transactions: Transaction[]): CoupleAlignment[] => {
   const byPartner = new Map<string, { income: number; topPriority: number; discretionary: number }>();
-  const topPriorities = new Set(["401k", "espp", "529", "college", "emergency"]);
+  const topPriorities = new Set(["401k", "mega backdoor", "after-tax 401k", "in-plan conversion", "espp", "roth ira", "ira contribution", "backdoor roth ira", "529", "college", "emergency"]);
 
   for (const tx of transactions) {
     const current = byPartner.get(tx.owner) ?? { income: 0, topPriority: 0, discretionary: 0 };
@@ -320,4 +347,3 @@ export const DEFAULT_CONFIG: FireConfig = {
   goals: DEFAULT_GOALS,
   phases: DEFAULT_PHASES,
 };
-
