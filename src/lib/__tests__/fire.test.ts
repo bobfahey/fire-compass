@@ -256,8 +256,17 @@ describe("rankGoals", () => {
 
   it("keeps default agreed priorities aligned to documented goal order", () => {
     const result = rankGoals(twoMonthTransactions, 50_000);
-    expect(result.find((r) => r.goal === "401k")?.agreedPriority).toBe(1);
-    expect(result.find((r) => r.goal === "Mega Backdoor Roth")?.agreedPriority).toBe(2);
+    expect(result.map((r) => r.goal)).toEqual([
+      "401k",
+      "Mega Backdoor Roth",
+      "ESPP",
+      "Roth IRA",
+      "529s",
+      "Emergency Fund",
+      "Studio Fund",
+      "Debt Paydown",
+    ]);
+    expect(result.map((r) => r.agreedPriority)).toEqual([1, 2, 3, 4, 5, 6, 7, 8]);
   });
 
   it("marks a goal as underfunded when actual is < 85% of target", () => {
