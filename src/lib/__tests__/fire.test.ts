@@ -254,6 +254,12 @@ describe("rankGoals", () => {
     expect(result).toHaveLength(DEFAULT_GOALS.length);
   });
 
+  it("keeps default agreed priorities aligned to documented goal order", () => {
+    const result = rankGoals(twoMonthTransactions, 50_000);
+    expect(result.find((r) => r.goal === "401k")?.agreedPriority).toBe(1);
+    expect(result.find((r) => r.goal === "Mega Backdoor Roth")?.agreedPriority).toBe(2);
+  });
+
   it("marks a goal as underfunded when actual is < 85% of target", () => {
     const result = rankGoals([], 100_000);
     for (const row of result) {
