@@ -89,6 +89,7 @@ export async function POST(request: NextRequest) {
   const imagesToProcess: { type: "accounts" | "categories"; base64: string; fileName: string }[] = [];
   const unknownImages: { base64: string; fileName: string }[] = [];
   const imageTypeSeen = new Set<string>();
+  const csvTypeProvided = new Set<"accounts" | "categories">();
 
   for (const [, value] of formData.entries()) {
     if (!(value instanceof File)) {
@@ -114,6 +115,12 @@ export async function POST(request: NextRequest) {
       const content = await value.text();
       await fs.writeFile(path.join(UPLOAD_DIR, fileName), content, "utf8");
       uploaded.push(fileName);
+      if (fileName === "accounts.csv") {
+        csvTypeProvided.add("accounts");
+      }
+      if (fileName === "categories.csv") {
+        csvTypeProvided.add("categories");
+      }
       continue;
     }
 
@@ -157,6 +164,10 @@ export async function POST(request: NextRequest) {
 
   // Process screenshots through GPT-4o vision
   for (const { type, base64 } of imagesToProcess) {
+    if (csvTypeProvided.has(type)) {
+      errors.push(`Skipped ${type} screenshot extraction because ${type}.csv was uploaded (CSV takes priority).`);
+      continue;
+    }
     try {
       const data = await extractDataFromImage(type, base64, request);
       if (!Array.isArray(data) || data.length === 0) {
