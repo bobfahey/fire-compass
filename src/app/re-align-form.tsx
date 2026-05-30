@@ -3,6 +3,7 @@
 import { FormEvent, useState } from "react";
 import { useRouter } from "next/navigation";
 
+import { COPILOT_MODEL_OPTIONS } from "@/lib/copilot-models";
 import { GoalConfig } from "@/lib/types";
 
 interface SuggestedGoal {
@@ -26,6 +27,7 @@ export function ReAlignForm({
   const [loading, setLoading] = useState(false);
   const [applying, setApplying] = useState(false);
   const [applied, setApplied] = useState(false);
+  const [model, setModel] = useState("auto");
 
   const onSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -40,7 +42,7 @@ export function ReAlignForm({
       const result = await fetch("/api/realign", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ prompt, context }),
+        body: JSON.stringify({ prompt, context, model }),
       });
 
       const body = (await result.json()) as {
@@ -134,6 +136,20 @@ export function ReAlignForm({
           value={prompt}
           onChange={(event) => setPrompt(event.target.value)}
         />
+        <label className="block text-sm text-zinc-700">
+          Model
+          <select
+            className="mt-1 block w-full rounded border border-zinc-300 p-2 text-sm"
+            value={model}
+            onChange={(event) => setModel(event.target.value)}
+          >
+            {COPILOT_MODEL_OPTIONS.map((option) => (
+              <option key={option.value} value={option.value}>
+                {option.label}
+              </option>
+            ))}
+          </select>
+        </label>
         <button
           type="submit"
           className="rounded bg-zinc-900 px-3 py-2 text-white disabled:opacity-50"

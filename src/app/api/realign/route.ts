@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 
+import { resolveCopilotChatCompletionModel } from "@/lib/copilot-models";
+
 interface SuggestedGoal {
   name: string;
   weight: number;
@@ -13,21 +15,28 @@ interface RealignResponse {
 }
 
 export async function POST(request: NextRequest) {
-  const { prompt, context } = (await request.json()) as { prompt?: string; context?: string };
+  const { prompt, context, model } = (await request.json()) as {
+    prompt?: string;
+    context?: string;
+    model?: string;
+  };
 
   if (!prompt) {
     return NextResponse.json({ error: "Prompt is required." }, { status: 400 });
   }
 
-  const token = process.env.GITHUB_COPILOT_API_KEY;
+  const token =
+    process.env.GITHUB_COPILOT_API_KEY ??
+    process.env.GITHUB_TOKEN ??
+    process.env.GH_TOKEN;
   if (!token) {
     return NextResponse.json({
       advice:
-        "Copilot key is not configured. Suggested re-alignment: revisit the top 3 priorities first, then cap lower-priority goals until 401k/Mega Backdoor Roth/ESPP/Roth IRA/529 contributions are back on target.",
+        "Copilot auth token is not configured. Set GITHUB_COPILOT_API_KEY, GITHUB_TOKEN, or GH_TOKEN. Suggested re-alignment: revisit the top 3 priorities first, then cap lower-priority goals until 401k/Mega Backdoor Roth/ESPP/Roth IRA/529 contributions are back on target.",
     });
   }
 
-  const model = process.env.GITHUB_COPILOT_MODEL ?? "gpt-4o-mini";
+  const selectedModel = resolveCopilotChatCompletionModel(model, process.env.GITHUB_COPILOT_MODEL);
 
   const systemPrompt = `You are a FIRE planning facilitator for a couple. Keep responses concrete, warm, and focused on helping partners align on savings goals and spending behavior.
 
@@ -60,7 +69,7 @@ Respond ONLY with the JSON object, no markdown fences or extra text.`;
       Authorization: `Bearer ${token}`,
     },
     body: JSON.stringify({
-      model,
+      model: selectedModel,
       messages: [
         { role: "system", content: systemPrompt },
         { role: "user", content: `Context:\n${context ?? ""}\n\nQuestion:\n${prompt}` },
