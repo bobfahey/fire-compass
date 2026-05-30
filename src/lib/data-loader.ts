@@ -2,6 +2,7 @@ import path from "node:path";
 import { promises as fs } from "node:fs";
 
 import { parseCsv } from "@/lib/csv";
+import { normalizeAccountTypeLabel } from "@/lib/label-normalization";
 import { Account, SpendingCategory, Transaction } from "@/lib/types";
 
 interface Dataset {
@@ -59,7 +60,7 @@ export const loadDataset = async (preferredDir?: string): Promise<Dataset> => {
     accounts: accountsRows.map((row) => ({
       name: row.name,
       balance: toNumber(row.balance),
-      type: row.type,
+      type: normalizeAccountTypeLabel(row.type ?? ""),
     })),
     categories: categoriesRows.map((row) => ({
       name: row.name,

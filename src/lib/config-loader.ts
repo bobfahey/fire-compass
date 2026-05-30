@@ -2,6 +2,7 @@ import path from "node:path";
 import { promises as fs } from "node:fs";
 
 import { DEFAULT_CONFIG } from "@/lib/fire";
+import { normalizeFireConfig } from "@/lib/label-normalization";
 import { FireConfig } from "@/lib/types";
 
 const CONFIG_PATH = process.env.FIRE_CONFIG_PATH || path.join(process.cwd(), "fire-config.json");
@@ -9,8 +10,8 @@ const CONFIG_PATH = process.env.FIRE_CONFIG_PATH || path.join(process.cwd(), "fi
 export async function loadConfig(): Promise<FireConfig> {
   try {
     const raw = await fs.readFile(CONFIG_PATH, "utf8");
-    return JSON.parse(raw) as FireConfig;
+    return normalizeFireConfig(JSON.parse(raw) as FireConfig);
   } catch {
-    return DEFAULT_CONFIG;
+    return normalizeFireConfig(DEFAULT_CONFIG);
   }
 }
