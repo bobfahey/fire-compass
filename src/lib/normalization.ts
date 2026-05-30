@@ -140,3 +140,47 @@ export const normalizeAccountType = (input: string): string => {
 
   return ACCOUNT_TYPE_LOOKUP.get(normalizeLookupKey(trimmed)) ?? trimmed;
 };
+
+// ─── Primitive normalization utilities ───────────────────────────────────────
+
+/**
+ * Normalize a string value: trim, collapse internal whitespace.
+ * Returns "" for null/undefined/empty.
+ */
+export const normalizeString = (input: string | null | undefined): string => {
+  if (input == null) return "";
+  return input.trim().replace(/\s+/g, " ");
+};
+
+/**
+ * Normalize a numeric value from user/CSV input.
+ * Strips $, commas, whitespace; returns 0 for null/undefined/NaN.
+ */
+export const normalizeNumeric = (input: string | null | undefined): number => {
+  if (input == null) return 0;
+  const cleaned = input.replaceAll(/[$,\s]/g, "");
+  if (!cleaned) return 0;
+  const parsed = Number(cleaned);
+  return Number.isFinite(parsed) ? parsed : 0;
+};
+
+/**
+ * Normalize a boolean value from string input.
+ * Returns true only for case-insensitive "true"; everything else is false.
+ */
+export const normalizeBoolean = (input: string | null | undefined): boolean => {
+  if (input == null) return false;
+  return input.trim().toLowerCase() === "true";
+};
+
+/**
+ * Build a lowercased search haystack from nullable fields.
+ * Joins non-empty trimmed values with a space and lowercases the result.
+ */
+export const buildSearchHaystack = (...fields: (string | null | undefined)[]): string => {
+  return fields
+    .map((f) => (f ?? "").trim())
+    .filter(Boolean)
+    .join(" ")
+    .toLowerCase();
+};

@@ -2,6 +2,7 @@ import path from "node:path";
 import { promises as fs } from "node:fs";
 
 import { parseCsv } from "@/lib/csv";
+import { normalizeBoolean, normalizeNumeric } from "@/lib/normalization";
 import { Account, SpendingCategory, Transaction } from "@/lib/types";
 
 interface Dataset {
@@ -11,11 +12,7 @@ interface Dataset {
   sourceDir: string;
 }
 
-const toNumber = (value: string): number => {
-  const normalized = value.replaceAll(/[$,]/g, "").trim();
-  const parsed = Number(normalized);
-  return Number.isFinite(parsed) ? parsed : 0;
-};
+const toNumber = (value: string): number => normalizeNumeric(value);
 
 const readCsv = async (baseDir: string, fileName: string): Promise<Record<string, string>[]> => {
   const fullPath = path.join(baseDir, fileName);
@@ -46,7 +43,7 @@ export const loadDataset = async (preferredDir?: string): Promise<Dataset> => {
   return {
     sourceDir,
     transactions: transactionsRows
-      .filter((row) => (row.excluded ?? "").toLowerCase() !== "true")
+      .filter((row) => !normalizeBoolean(row.excluded))
       .map((row) => ({
         date: row.date,
         amount: toNumber(row.amount),
