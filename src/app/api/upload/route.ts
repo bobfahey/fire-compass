@@ -4,6 +4,8 @@ import os from "node:os";
 
 import { NextRequest, NextResponse } from "next/server";
 
+import { normalizeExtractedRows } from "@/lib/api-normalization";
+
 const UPLOAD_DIR = path.join(os.tmpdir(), "fire-compass-data");
 const ALLOWED_CSV_FILES = new Set(["transactions.csv", "accounts.csv", "categories.csv"]);
 const IMAGE_EXTENSIONS = new Set([".png", ".jpg", ".jpeg", ".webp"]);
@@ -174,7 +176,8 @@ export async function POST(request: NextRequest) {
         errors.push(`Could not extract ${type} data from screenshot — no items found.`);
         continue;
       }
-      const csv = toCsv(data);
+      const normalizedData = normalizeExtractedRows(type, data);
+      const csv = toCsv(normalizedData);
       const csvFileName = type === "accounts" ? "accounts.csv" : "categories.csv";
       await fs.writeFile(path.join(UPLOAD_DIR, csvFileName), csv, "utf8");
       uploaded.push(`${csvFileName} (extracted from screenshot)`);

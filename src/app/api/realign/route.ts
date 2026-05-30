@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 
+import { normalizeSuggestedGoals } from "@/lib/api-normalization";
 import { resolveCopilotChatCompletionModel } from "@/lib/copilot-models";
 
 interface SuggestedGoal {
@@ -100,10 +101,11 @@ Respond ONLY with the JSON object, no markdown fences or extra text.`;
     const parsed = JSON.parse(cleaned) as RealignResponse;
     result = { advice: parsed.advice ?? raw };
     if (Array.isArray(parsed.suggestedGoals) && parsed.suggestedGoals.length > 0) {
-      const activeGoals = parsed.suggestedGoals.filter((g) => g.action !== "remove");
+      const normalizedGoals = normalizeSuggestedGoals(parsed.suggestedGoals);
+      const activeGoals = normalizedGoals.filter((g) => g.action !== "remove");
       const weightSum = activeGoals.reduce((s, g) => s + (g.weight ?? 0), 0);
       if (Math.abs(weightSum - 1) <= 0.02) {
-        result.suggestedGoals = parsed.suggestedGoals;
+        result.suggestedGoals = normalizedGoals;
       }
     }
   } catch {
