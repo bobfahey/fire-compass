@@ -3,6 +3,8 @@
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 
+import { normalizeUploadStatusLabel } from "@/lib/label-normalization";
+
 type UploadSlot = "transactions" | "accountsCsv" | "categoriesCsv" | "accountsScreenshot" | "categoriesScreenshot";
 type UploadSelections = Partial<Record<UploadSlot, File>>;
 const CSV_SLOTS: UploadSlot[] = ["transactions", "accountsCsv", "categoriesCsv"];
@@ -215,7 +217,7 @@ export function DataUploadForm() {
           <p className="text-sm font-medium text-emerald-800">Processed successfully</p>
           <ul className="mt-1 text-sm text-emerald-700">
             {result.uploaded.map((f, i) => (
-              <li key={i}>- {f}</li>
+              <li key={i}>- {normalizeUploadStatusLabel(f)}</li>
             ))}
           </ul>
           <p className="mt-1 text-xs text-emerald-700">Dashboard data refreshed automatically.</p>

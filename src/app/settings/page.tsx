@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 
+import { normalizeFireConfig } from "@/lib/label-normalization";
 import { FireConfig, GoalConfig, PhaseConfig } from "@/lib/types";
 
 export default function SettingsPage() {
@@ -13,7 +14,7 @@ export default function SettingsPage() {
   useEffect(() => {
     fetch("/api/config")
       .then((r) => r.json() as Promise<FireConfig>)
-      .then(setConfig)
+      .then((loadedConfig) => setConfig(normalizeFireConfig(loadedConfig)))
       .catch(() => setMessage({ text: "Failed to load config.", ok: false }));
   }, []);
 
@@ -25,7 +26,7 @@ export default function SettingsPage() {
       const result = await fetch("/api/config", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(config),
+        body: JSON.stringify(normalizeFireConfig(config)),
       });
       const body = (await result.json()) as { ok?: boolean; error?: string };
       setMessage(body.ok ? { text: "Settings saved.", ok: true } : { text: body.error ?? "Error.", ok: false });

@@ -4,6 +4,7 @@ import { FormEvent, useState } from "react";
 import { useRouter } from "next/navigation";
 
 import { COPILOT_MODEL_OPTIONS } from "@/lib/copilot-models";
+import { normalizeGoalLabel } from "@/lib/label-normalization";
 import { GoalConfig } from "@/lib/types";
 
 interface SuggestedGoal {
@@ -12,6 +13,16 @@ interface SuggestedGoal {
   keywords?: string[];
   action?: "keep" | "add" | "remove";
 }
+
+const normalizeSuggestedGoals = (goals: SuggestedGoal[]): SuggestedGoal[] => {
+  const byCanonicalName = new Map<string, SuggestedGoal>();
+  for (const goal of goals) {
+    const canonicalName = normalizeGoalLabel(goal.name);
+    byCanonicalName.set(canonicalName, { ...goal, name: canonicalName });
+  }
+
+  return Array.from(byCanonicalName.values());
+};
 
 export function ReAlignForm({
   context,
@@ -53,7 +64,7 @@ export function ReAlignForm({
       };
       setAdvice(body.advice ?? body.response ?? body.error ?? "No response.");
       if (body.suggestedGoals) {
-        setSuggestedGoals(body.suggestedGoals);
+        setSuggestedGoals(normalizeSuggestedGoals(body.suggestedGoals));
       }
     } catch {
       setAdvice("Network error — please check your connection and try again.");
@@ -73,18 +84,21 @@ export function ReAlignForm({
       // Build the new goals array from suggestions
       const updatedGoals: GoalConfig[] = [];
       for (const sg of suggestedGoals) {
+        const canonicalName = normalizeGoalLabel(sg.name);
         if (sg.action === "remove") continue;
 
-        const existing = config.goals.find((g: GoalConfig) => g.name === sg.name);
+        const existing = config.goals.find(
+          (g: GoalConfig) => normalizeGoalLabel(g.name) === canonicalName
+        );
         if (existing) {
           // Keep or reweight existing goal
-          updatedGoals.push({ ...existing, weight: sg.weight });
+          updatedGoals.push({ ...existing, name: canonicalName, weight: sg.weight });
         } else if (sg.action === "add") {
           // Brand new goal
           updatedGoals.push({
-            name: sg.name,
+            name: canonicalName,
             weight: sg.weight,
-            keywords: sg.keywords ?? [sg.name.toLowerCase()],
+            keywords: sg.keywords ?? [canonicalName.toLowerCase()],
           });
         }
       }
@@ -174,7 +188,10 @@ export function ReAlignForm({
           <h3 className="mb-3 text-sm font-semibold text-blue-900">Suggested changes</h3>
           <div className="space-y-2">
             {suggestedGoals.map((sg) => {
-              const current = currentGoals.find((g) => g.name === sg.name);
+              const canonicalName = normalizeGoalLabel(sg.name);
+              const current = currentGoals.find(
+                (g) => normalizeGoalLabel(g.name) === canonicalName
+              );
               const currentWeight = current?.weight ?? 0;
               const isNew = sg.action === "add";
               const isRemoved = sg.action === "remove";
@@ -189,7 +206,7 @@ export function ReAlignForm({
                   }`}
                 >
                   <div className="flex items-center gap-2">
-                    <span className="font-medium">{sg.name}</span>
+                  <span className="font-medium">{canonicalName}</span>
                     {label && (
                       <span className={`rounded-full px-2 py-0.5 text-xs font-semibold ${actionColor(sg)}`}>
                         {label}

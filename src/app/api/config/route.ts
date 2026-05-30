@@ -20,7 +20,7 @@ export async function GET() {
 }
 
 export async function POST(request: NextRequest) {
-  const body = (await request.json()) as FireConfig;
+  const body = normalizeFireConfig((await request.json()) as FireConfig);
 
   if (!Array.isArray(body.goals) || !Array.isArray(body.phases)) {
     return NextResponse.json({ error: "Invalid config shape." }, { status: 400 });
