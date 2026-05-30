@@ -341,6 +341,26 @@ describe("rankGoals", () => {
     expect(rowIra.annualActual).toBeGreaterThan(0);
     expect(rowMega.annualActual).toBe(0);
   });
+
+  it("treats canonical and alias labels as equivalent for matching", () => {
+    const canonicalTxns: Transaction[] = [
+      makeTransaction({ date: "2026-01-01", amount: 12_000 }),
+      makeTransaction({ date: "2026-01-03", amount: -1_000, description: "Mega Backdoor Roth contribution", category: "Mega Backdoor Roth" }),
+      makeTransaction({ date: "2026-01-04", amount: -500, description: "Roth IRA contribution", category: "Roth IRA" }),
+    ];
+    const aliasTxns: Transaction[] = [
+      makeTransaction({ date: "2026-01-01", amount: 12_000 }),
+      makeTransaction({ date: "2026-01-03", amount: -1_000, description: "after tax 401k in plan conversion", category: "after tax 401k" }),
+      makeTransaction({ date: "2026-01-04", amount: -500, description: "backdoor roth ira contribution", category: "ira contribution" }),
+    ];
+
+    const canonical = rankGoals(canonicalTxns, 50_000);
+    const alias = rankGoals(aliasTxns, 50_000);
+    const toActualMap = (rows: GoalFunding[]) =>
+      new Map(rows.map((row) => [row.goal, row.annualActual]));
+
+    expect(toActualMap(alias)).toEqual(toActualMap(canonical));
+  });
 });
 
 // ---------------------------------------------------------------------------
@@ -371,6 +391,22 @@ describe("buildMonthlyGoalFunding", () => {
     ];
     const result = buildMonthlyGoalFunding(txns);
     expect(result[0].funding["401k"]).toBe(800);
+  });
+
+  it("treats canonical and alias labels as equivalent when aggregating monthly funding", () => {
+    const canonicalTxns: Transaction[] = [
+      makeTransaction({ date: "2026-01-01", amount: -700, description: "Mega Backdoor Roth contribution", category: "Mega Backdoor Roth" }),
+      makeTransaction({ date: "2026-01-02", amount: -300, description: "Roth IRA contribution", category: "Roth IRA" }),
+    ];
+    const aliasTxns: Transaction[] = [
+      makeTransaction({ date: "2026-01-01", amount: -700, description: "after tax 401k in plan conversion", category: "after tax 401k" }),
+      makeTransaction({ date: "2026-01-02", amount: -300, description: "backdoor roth ira contribution", category: "ira contribution" }),
+    ];
+
+    const canonical = buildMonthlyGoalFunding(canonicalTxns);
+    const alias = buildMonthlyGoalFunding(aliasTxns);
+
+    expect(alias).toEqual(canonical);
   });
 });
 

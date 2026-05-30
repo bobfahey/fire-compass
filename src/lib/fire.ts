@@ -36,15 +36,29 @@ export const DEFAULT_GOALS: GoalConfig[] = [
   { name: "Debt Paydown", weight: 0.10, keywords: ["debt", "loan", "mortgage"] },
 ];
 
+const TOP_PRIORITY_GOALS: Set<GoalName> = new Set([
+  "401k",
+  "Mega Backdoor Roth",
+  "ESPP",
+  "Roth IRA",
+  "529s",
+  "Emergency Fund",
+]);
+
+const canonicalizeGoalText = (text: string): string =>
+  text.toLowerCase().replace(/[^a-z0-9]/g, "");
+
 const findGoalMatch = (
   goalConfig: GoalConfig[],
   haystack: string,
 ): GoalConfig | undefined => {
+  const canonicalHaystack = canonicalizeGoalText(haystack);
   let bestMatch: { goal: GoalConfig; keywordLength: number; index: number } | undefined;
 
   goalConfig.forEach((goal, index) => {
-    goal.keywords.forEach((keyword) => {
-      if (!haystack.includes(keyword)) {
+    goal.keywords.forEach((rawKeyword) => {
+      const keyword = canonicalizeGoalText(rawKeyword);
+      if (!keyword || !canonicalHaystack.includes(keyword)) {
         return;
       }
 
@@ -298,7 +312,6 @@ export const detectPriorityDrift = (funding: GoalFunding[]): string[] => {
 
 export const buildCoupleAlignment = (transactions: Transaction[]): CoupleAlignment[] => {
   const byPartner = new Map<string, { income: number; topPriority: number; discretionary: number }>();
-  const topPriorities = new Set(["401k", "mega backdoor", "after-tax 401k", "in-plan conversion", "espp", "roth ira", "ira contribution", "backdoor roth ira", "529", "college", "emergency"]);
 
   for (const tx of transactions) {
     const current = byPartner.get(tx.owner) ?? { income: 0, topPriority: 0, discretionary: 0 };
@@ -306,8 +319,8 @@ export const buildCoupleAlignment = (transactions: Transaction[]): CoupleAlignme
     if (tx.amount > 0) {
       current.income += tx.amount;
     } else {
-      const haystack = `${tx.category} ${tx.description}`.toLowerCase();
-      if ([...topPriorities].some((keyword) => haystack.includes(keyword))) {
+      const match = findGoalMatch(DEFAULT_GOALS, `${tx.category} ${tx.description}`);
+      if (match && TOP_PRIORITY_GOALS.has(match.name)) {
         current.topPriority += Math.abs(tx.amount);
       } else {
         current.discretionary += Math.abs(tx.amount);
