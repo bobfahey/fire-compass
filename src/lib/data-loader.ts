@@ -1,7 +1,7 @@
 import path from "node:path";
 import { promises as fs } from "node:fs";
 
-import { parseCsv } from "@/lib/csv";
+import { normalizeAccountType, normalizeGoalLabel, parseCsv } from "@/lib/csv";
 import { Account, SpendingCategory, Transaction } from "@/lib/types";
 
 interface Dataset {
@@ -51,7 +51,7 @@ export const loadDataset = async (preferredDir?: string): Promise<Dataset> => {
         date: row.date,
         amount: toNumber(row.amount),
         description: row.description || row.name || "",
-        category: row.category,
+        category: normalizeGoalLabel(row.category ?? "") || "other",
         account: row.account,
         owner: row.owner || "Unassigned",
         transactionType: row.type || "regular",
@@ -59,10 +59,10 @@ export const loadDataset = async (preferredDir?: string): Promise<Dataset> => {
     accounts: accountsRows.map((row) => ({
       name: row.name,
       balance: toNumber(row.balance),
-      type: row.type,
+      type: normalizeAccountType(row.type ?? "") || "checking",
     })),
     categories: categoriesRows.map((row) => ({
-      name: row.name,
+      name: normalizeGoalLabel(row.name ?? "") || "Uncategorized",
       monthlyBudget: toNumber(row.monthlyBudget),
     })),
   };
