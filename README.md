@@ -11,6 +11,24 @@ npm run dev
 
 Open http://localhost:3000.
 
+### Open from your phone (same Wi-Fi)
+
+Run the dev server on your local network:
+
+```bash
+npm run dev:lan
+```
+
+Find your Mac's local IP address:
+
+```bash
+ipconfig getifaddr "$(route get default | awk '/interface:/{print $2; exit}')"
+```
+
+Then open `http://YOUR_LOCAL_IP:3000` from your phone while both devices are on the same Wi-Fi network.
+
+If it does not load, check that macOS is not blocking Node/Next.js from accepting incoming connections and that your phone is not on cellular or guest Wi-Fi.
+
 ## Data files
 
 - Private real data goes in `/data` (gitignored)
