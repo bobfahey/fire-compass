@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 
+import { normalizeExtractedRows } from "@/lib/api-normalization";
+
 const GITHUB_MODELS_URL = "https://models.github.ai/inference/chat/completions";
 const MODEL = "openai/gpt-4o";
 
@@ -118,7 +120,11 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ classification: parsed.classification ?? "unknown" });
     }
 
-    return NextResponse.json({ type, data: parsed });
+    const normalizedData = Array.isArray(parsed)
+      ? normalizeExtractedRows(type, parsed as Record<string, string | number>[])
+      : parsed;
+
+    return NextResponse.json({ type, data: normalizedData });
   } catch (err) {
     const message = err instanceof Error ? err.message : "Unknown error";
     return NextResponse.json({ error: `Extraction failed: ${message}` }, { status: 500 });
