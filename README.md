@@ -22,7 +22,7 @@ npm run dev:lan
 Find your Mac's local IP address:
 
 ```bash
-ipconfig getifaddr en0
+ipconfig getifaddr "$(route get default | awk '/interface:/{print $2; exit}')"
 ```
 
 Then open `http://YOUR_LOCAL_IP:3000` from your phone while both devices are on the same Wi-Fi network.

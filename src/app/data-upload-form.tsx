@@ -8,8 +8,9 @@ type UploadSelections = Partial<Record<UploadSlot, File>>;
 const CSV_SLOTS: UploadSlot[] = ["transactions", "accountsCsv", "categoriesCsv"];
 
 const getFileExtension = (file: File): string => {
-  const ext = file.name.split(".").pop()?.toLowerCase();
-  return ext && ext.length > 0 ? ext : "png";
+  const lastDot = file.name.lastIndexOf(".");
+  if (lastDot <= 0 || lastDot === file.name.length - 1) return "";
+  return file.name.slice(lastDot + 1).toLowerCase();
 };
 
 const isImage = (file: File): boolean => {
@@ -73,15 +74,19 @@ export function DataUploadForm() {
       form.append("categories.csv", selections.categoriesCsv, "categories.csv");
     }
     if (selections.accountsScreenshot) {
+      const fileName = `accounts-screenshot.${getFileExtension(selections.accountsScreenshot)}`;
       form.append(
-        `accounts-screenshot.${getFileExtension(selections.accountsScreenshot)}`,
+        fileName,
         selections.accountsScreenshot,
+        fileName,
       );
     }
     if (selections.categoriesScreenshot) {
+      const fileName = `categories-screenshot.${getFileExtension(selections.categoriesScreenshot)}`;
       form.append(
-        `categories-screenshot.${getFileExtension(selections.categoriesScreenshot)}`,
+        fileName,
         selections.categoriesScreenshot,
+        fileName,
       );
     }
 
