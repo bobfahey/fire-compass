@@ -10,4 +10,4 @@
 
 ## Copilot re-alignment
 
-`POST /api/realign` sends contextual goal drift/alignment details to GitHub Copilot Chat Completions when `GITHUB_COPILOT_API_KEY` is configured.
+`POST /api/realign` sends contextual goal drift/alignment details to GitHub Copilot Chat Completions when an auth token is configured via `GITHUB_COPILOT_API_KEY` (preferred), `GITHUB_TOKEN`, or `GH_TOKEN`.

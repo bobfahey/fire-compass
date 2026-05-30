@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Link from "next/link";
 
 import { FireConfig, GoalConfig, PhaseConfig } from "@/lib/types";
 
@@ -72,9 +73,9 @@ export default function SettingsPage() {
           Customise goal weights and life-phase multipliers. Changes are saved to{" "}
           <code className="rounded bg-zinc-100 px-1">fire-config.json</code> in the project root.
         </p>
-        <a href="/" className="text-sm text-zinc-500 underline">
+        <Link href="/" className="text-sm text-zinc-500 underline">
           ← Back to dashboard
-        </a>
+        </Link>
       </header>
 
       <section>
