@@ -3,9 +3,80 @@ import { promises as fs } from "node:fs";
 
 import { DEFAULT_CONFIG } from "@/lib/fire";
 import { FireConfig, GoalConfig, PhaseConfig } from "@/lib/types";
-import { normalizeGoalName } from "@/lib/normalization";
+import { normalizeAccountType, normalizeGoalName } from "@/lib/normalization";
 
-const CONFIG_PATH = process.env.FIRE_CONFIG_PATH || path.join(process.cwd(), "fire-config.json");
+const getConfigPath = (): string =>
+  process.env.FIRE_CONFIG_PATH || path.join(process.cwd(), "fire-config.json");
+
+const normalizeKeyword = (keyword: string): string => {
+  const normalizedGoal = normalizeGoalName(keyword);
+  return normalizeAccountType(normalizedGoal);
+};
+
+const parseGoal = (goal: unknown): GoalConfig | null => {
+  if (!goal || typeof goal !== "object") {
+    return null;
+  }
+
+  const goalValue = goal as Partial<GoalConfig>;
+  if (typeof goalValue.name !== "string" || typeof goalValue.weight !== "number") {
+    return null;
+  }
+
+  const keywords = Array.isArray(goalValue.keywords)
+    ? goalValue.keywords
+        .filter((keyword): keyword is string => typeof keyword === "string")
+        .map((keyword) => normalizeKeyword(keyword))
+    : [];
+
+  return {
+    name: normalizeGoalName(goalValue.name),
+    weight: goalValue.weight,
+    keywords,
+  };
+};
+
+const parsePhase = (phase: unknown): PhaseConfig | null => {
+  if (!phase || typeof phase !== "object") {
+    return null;
+  }
+
+  const phaseValue = phase as Partial<PhaseConfig>;
+  if (
+    typeof phaseValue.name !== "string" ||
+    typeof phaseValue.years !== "number" ||
+    typeof phaseValue.multiplier !== "number"
+  ) {
+    return null;
+  }
+
+  return {
+    name: phaseValue.name as PhaseConfig["name"],
+    years: phaseValue.years,
+    multiplier: phaseValue.multiplier,
+  };
+};
+
+export function parseAndNormalizeConfig(input: unknown): FireConfig {
+  if (!input || typeof input !== "object") {
+    return DEFAULT_CONFIG;
+  }
+
+  const value = input as Partial<FireConfig>;
+  const goals = Array.isArray(value.goals)
+    ? value.goals.map((goal) => parseGoal(goal)).filter((goal): goal is GoalConfig => goal !== null)
+    : [];
+  const phases = Array.isArray(value.phases)
+    ? value.phases
+        .map((phase) => parsePhase(phase))
+        .filter((phase): phase is PhaseConfig => phase !== null)
+    : [];
+
+  return {
+    goals: goals.length > 0 ? goals : DEFAULT_CONFIG.goals,
+    phases: phases.length > 0 ? phases : DEFAULT_CONFIG.phases,
+  };
+}
 
 export interface ConfigLoadResult {
   config: FireConfig;
@@ -187,7 +258,7 @@ export function serializeConfig(config: FireConfig): string {
 export async function loadConfig(): Promise<ConfigLoadResult> {
   let raw: string;
   try {
-    raw = await fs.readFile(CONFIG_PATH, "utf8");
+    raw = await fs.readFile(getConfigPath(), "utf8");
   } catch {
     return { config: DEFAULT_CONFIG, warnings: [], source: "default" };
   }
@@ -223,7 +294,7 @@ export async function loadConfig(): Promise<ConfigLoadResult> {
  */
 export async function saveConfig(config: FireConfig): Promise<{ warnings: string[] }> {
   const serialized = serializeConfig(config);
-  await fs.writeFile(CONFIG_PATH, serialized, "utf8");
+  await fs.writeFile(getConfigPath(), serialized, "utf8");
 
   // Report any normalization that happened
   const { warnings } = normalizeGoals(config.goals);
