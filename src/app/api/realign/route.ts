@@ -1,17 +1,15 @@
 import { NextRequest, NextResponse } from "next/server";
 
 import { resolveCopilotChatCompletionModel } from "@/lib/copilot-models";
+import { validateGoalPatch, type GoalPatch, type PatchValidationResult } from "@/lib/realign-patch";
 
-interface SuggestedGoal {
-  name: string;
-  weight: number;
-  keywords?: string[];
-  action?: "keep" | "add" | "remove";
-}
-
-interface RealignResponse {
+export interface RealignResponse {
   advice: string;
-  suggestedGoals?: SuggestedGoal[];
+  suggestedGoals?: GoalPatch[];
+  patchRejection?: {
+    reason: string;
+    details: string[];
+  };
 }
 
 export async function POST(request: NextRequest) {
@@ -30,10 +28,13 @@ export async function POST(request: NextRequest) {
     process.env.GITHUB_TOKEN ??
     process.env.GH_TOKEN;
   if (!token) {
-    return NextResponse.json({
-      advice:
-        "Copilot auth token is not configured. Set GITHUB_COPILOT_API_KEY, GITHUB_TOKEN, or GH_TOKEN. Suggested re-alignment: revisit the top 3 priorities first, then cap lower-priority goals until 401k/Mega Backdoor Roth/ESPP/Roth IRA/529 contributions are back on target.",
-    });
+    return NextResponse.json(
+      {
+        error:
+          "Copilot auth token is not configured. Set GITHUB_COPILOT_API_KEY, GITHUB_TOKEN, or GH_TOKEN.",
+      },
+      { status: 503 },
+    );
   }
 
   const selectedModel = resolveCopilotChatCompletionModel(model, process.env.GITHUB_COPILOT_MODEL);
@@ -93,21 +94,48 @@ Respond ONLY with the JSON object, no markdown fences or extra text.`;
 
   const raw = payload.choices?.[0]?.message?.content ?? "";
 
-  // Parse AI response — expect JSON but fall back gracefully
-  let result: RealignResponse;
+  // Parse AI response — reject explicitly on failure, no silent fallback
+  const cleaned = raw.replace(/^```json?\n?/i, "").replace(/\n?```$/i, "").trim();
+
+  let parsed: { advice?: string; suggestedGoals?: unknown };
   try {
-    const cleaned = raw.replace(/^```json?\n?/i, "").replace(/\n?```$/i, "").trim();
-    const parsed = JSON.parse(cleaned) as RealignResponse;
-    result = { advice: parsed.advice ?? raw };
-    if (Array.isArray(parsed.suggestedGoals) && parsed.suggestedGoals.length > 0) {
-      const activeGoals = parsed.suggestedGoals.filter((g) => g.action !== "remove");
-      const weightSum = activeGoals.reduce((s, g) => s + (g.weight ?? 0), 0);
-      if (Math.abs(weightSum - 1) <= 0.02) {
-        result.suggestedGoals = parsed.suggestedGoals;
-      }
-    }
+    parsed = JSON.parse(cleaned) as { advice?: string; suggestedGoals?: unknown };
   } catch {
-    result = { advice: raw || "No response returned." };
+    return NextResponse.json(
+      {
+        error: "AI response was not valid JSON. Please retry.",
+        rawFragment: cleaned.slice(0, 200),
+      },
+      { status: 422 },
+    );
+  }
+
+  if (!parsed.advice || typeof parsed.advice !== "string") {
+    return NextResponse.json(
+      {
+        error: "AI response missing required 'advice' field. Please retry.",
+        rawFragment: cleaned.slice(0, 200),
+      },
+      { status: 422 },
+    );
+  }
+
+  const result: RealignResponse = { advice: parsed.advice };
+
+  // Deterministic patch validation: apply or explicitly reject
+  if (Array.isArray(parsed.suggestedGoals) && parsed.suggestedGoals.length > 0) {
+    const validation: PatchValidationResult = validateGoalPatch(
+      parsed.suggestedGoals as GoalPatch[],
+    );
+
+    if (validation.valid) {
+      result.suggestedGoals = validation.normalizedGoals;
+    } else {
+      result.patchRejection = {
+        reason: "Goal patch from AI failed validation. Review and retry.",
+        details: validation.errors,
+      };
+    }
   }
 
   return NextResponse.json(result);
