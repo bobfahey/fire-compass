@@ -113,14 +113,61 @@ export function DataUploadForm() {
       </p>
 
       <div className="space-y-2">
+        <p className="text-xs font-semibold uppercase text-zinc-500">Required (1 file)</p>
         {[
           {
             slot: "transactions" as const,
-            title: "Transactions CSV (required)",
+            title: "Transactions CSV",
             help: "Copilot Money transaction export.",
             accept: ".csv",
             required: true,
           },
+        ].map((field) => {
+          const selected = selections[field.slot];
+          const invalid = selected ? !isValidForSlot(field.slot, selected) : false;
+          return (
+            <div key={field.slot} className="rounded border border-blue-200 bg-blue-50/50 px-3 py-2 text-sm">
+              <div>
+                <p className="font-medium text-zinc-800">{field.title} <span className="text-xs text-blue-600 font-semibold">REQUIRED</span></p>
+                <p className="text-xs text-zinc-500">{field.help}</p>
+              </div>
+              <div className="mt-2 flex flex-wrap items-center gap-2">
+                <label className="cursor-pointer rounded border border-zinc-300 bg-white px-2.5 py-1 text-xs font-medium text-zinc-700 hover:bg-zinc-100">
+                  {selected ? "Replace file" : "Choose file"}
+                  <input
+                    type="file"
+                    accept={field.accept}
+                    onChange={(e) => {
+                      setSlot(field.slot, e.target.files);
+                      e.target.value = "";
+                    }}
+                    className="hidden"
+                  />
+                </label>
+                {selected ? (
+                  <>
+                    <span className="text-xs text-zinc-700">{selected.name}</span>
+                    <button
+                      type="button"
+                      onClick={() => clearSlot(field.slot)}
+                      className="text-xs text-zinc-500 hover:text-red-600"
+                    >
+                      Remove
+                    </button>
+                  </>
+                ) : (
+                  <span className="text-xs text-zinc-400">Not selected</span>
+                )}
+              </div>
+              {invalid ? (
+                <p className="mt-1 text-xs text-red-600">Please choose a .csv file.</p>
+              ) : null}
+            </div>
+          );
+        })}
+
+        <p className="mt-3 text-xs font-semibold uppercase text-zinc-500">Optional account data (4 slots)</p>
+        {[
           {
             slot: "accountsCsv" as const,
             title: "Accounts CSV (optional)",

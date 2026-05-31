@@ -27,6 +27,9 @@ export function ReAlignForm({
   const [loading, setLoading] = useState(false);
   const [applying, setApplying] = useState(false);
   const [applied, setApplied] = useState(false);
+  const [rejected, setRejected] = useState(false);
+  const [rejectReason, setRejectReason] = useState("");
+  const [showRejectInput, setShowRejectInput] = useState(false);
   const [model, setModel] = useState("auto");
 
   const onSubmit = async (event: FormEvent<HTMLFormElement>) => {
@@ -37,6 +40,9 @@ export function ReAlignForm({
     setAdvice("");
     setSuggestedGoals(null);
     setApplied(false);
+    setRejected(false);
+    setShowRejectInput(false);
+    setRejectReason("");
 
     try {
       const result = await fetch("/api/realign", {
@@ -169,9 +175,23 @@ export function ReAlignForm({
         </div>
       )}
 
-      {suggestedGoals && !applied && (
+      {rejected && (
+        <div className="mt-3 rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-800">
+          <span className="font-medium">✕ Suggestions rejected.</span>
+          {rejectReason && (
+            <span className="ml-1 text-red-600">Reason: {rejectReason}</span>
+          )}
+          <span className="ml-1">Try rephrasing your request above for a different suggestion.</span>
+        </div>
+      )}
+
+      {suggestedGoals && !applied && !rejected && (
         <div className="mt-4 rounded-lg border border-blue-200 bg-blue-50 p-4">
-          <h3 className="mb-3 text-sm font-semibold text-blue-900">Suggested changes</h3>
+          <h3 className="mb-1 text-sm font-semibold text-blue-900">Proposed config patch</h3>
+          <p className="mb-3 text-xs text-blue-700">
+            {currentGoals.length} goals → {suggestedGoals.filter((g) => g.action !== "remove").length} goals |
+            Total weight: {(suggestedGoals.filter((g) => g.action !== "remove").reduce((s, g) => s + g.weight, 0) * 100).toFixed(0)}%
+          </p>
           <div className="space-y-2">
             {suggestedGoals.map((sg) => {
               const current = currentGoals.find((g) => g.name === sg.name);
@@ -221,20 +241,46 @@ export function ReAlignForm({
               );
             })}
           </div>
-          <div className="mt-3 flex items-center gap-3">
-            <button
-              onClick={applyChanges}
-              disabled={applying}
-              className="rounded bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-50"
-            >
-              {applying ? "Applying..." : "Apply these changes"}
-            </button>
-            <button
-              onClick={() => setSuggestedGoals(null)}
-              className="rounded border border-zinc-300 px-4 py-2 text-sm text-zinc-600 hover:bg-zinc-50"
-            >
-              Dismiss
-            </button>
+          <div className="mt-3 flex flex-col gap-3">
+            <div className="flex items-center gap-3">
+              <button
+                onClick={applyChanges}
+                disabled={applying}
+                className="rounded bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-50"
+              >
+                {applying ? "Applying..." : "✓ Apply these changes"}
+              </button>
+              <button
+                onClick={() => setShowRejectInput(!showRejectInput)}
+                className="rounded border border-red-200 px-4 py-2 text-sm text-red-600 hover:bg-red-50"
+              >
+                ✕ Reject
+              </button>
+            </div>
+            {showRejectInput && (
+              <div className="rounded border border-red-100 bg-red-50/50 p-3">
+                <label className="block text-xs font-medium text-red-700 mb-1">
+                  Why are you rejecting? (optional)
+                </label>
+                <input
+                  type="text"
+                  value={rejectReason}
+                  onChange={(e) => setRejectReason(e.target.value)}
+                  placeholder="e.g. Weights don't match our priorities"
+                  className="w-full rounded border border-red-200 px-2 py-1.5 text-sm"
+                />
+                <button
+                  onClick={() => {
+                    setSuggestedGoals(null);
+                    setRejected(true);
+                    setShowRejectInput(false);
+                  }}
+                  className="mt-2 rounded bg-red-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-red-700"
+                >
+                  Confirm rejection
+                </button>
+              </div>
+            )}
           </div>
         </div>
       )}
