@@ -38,6 +38,20 @@ describe("config-loader public-base normalization", () => {
     expect(parsed.goals).toEqual(DEFAULT_CONFIG.goals);
   });
 
+  it("canonicalizes valid phase names and falls back when any phase name is unknown", () => {
+    const canonicalized = parseAndNormalizeConfig({
+      goals: DEFAULT_CONFIG.goals,
+      phases: [{ name: "young kids", years: 4, multiplier: 1.1 }],
+    });
+    expect(canonicalized.phases).toEqual([{ name: "Young Kids", years: 4, multiplier: 1.1 }]);
+
+    const rejected = parseAndNormalizeConfig({
+      goals: DEFAULT_CONFIG.goals,
+      phases: [{ name: "Unknown Phase", years: 4, multiplier: 1.1 }],
+    });
+    expect(rejected.phases).toEqual(DEFAULT_CONFIG.phases);
+  });
+
   it("loads config from FIRE_CONFIG_PATH and applies normalization", async () => {
     const tempDir = await mkdtemp(path.join(os.tmpdir(), "fire-config-loader-"));
     const configPath = path.join(tempDir, "fire-config.json");
