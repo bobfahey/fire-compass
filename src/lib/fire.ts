@@ -1,3 +1,4 @@
+import { CANONICAL_ACCOUNT_TYPES } from "@/lib/normalization";
 import {
   Account,
   CoupleAlignment,
@@ -18,6 +19,9 @@ import { buildSearchHaystack, normalizeAccountType } from "@/lib/normalization";
 export const REAL_RETURN_RATE = 0.07;
 export const SAFE_WITHDRAWAL_RATE = 0.04;
 
+/** Account types eligible for investable-asset calculations. */
+const INVESTABLE_TYPES: Set<string> = new Set(CANONICAL_ACCOUNT_TYPES);
+
 export const DEFAULT_PHASES: PhaseConfig[] = [
   { name: "Young Kids", years: 4, multiplier: 1.1 },
   { name: "Growing Kids", years: 6, multiplier: 1.2 },
@@ -37,10 +41,23 @@ export const DEFAULT_GOALS: GoalConfig[] = [
   { name: "Debt Paydown", weight: 0.10, keywords: ["debt", "loan", "mortgage"] },
 ];
 
+/**
+ * Match text against goal keywords. When data has been normalized upstream,
+ * the category field often equals a canonical goal name directly, which wins
+ * over keyword substring matching.
+ */
 const findGoalMatch = (
   goalConfig: GoalConfig[],
   haystack: string,
 ): GoalConfig | undefined => {
+  // Fast path: exact match against goal name (post-normalization the category
+  // field will often be the canonical name in lowercase)
+  const exactMatch = goalConfig.find(
+    (g) => haystack === g.name.toLowerCase() || haystack.startsWith(g.name.toLowerCase() + " "),
+  );
+  if (exactMatch) return exactMatch;
+
+  // Fallback: keyword substring matching for description text and edge cases
   let bestMatch: { goal: GoalConfig; keywordLength: number; index: number } | undefined;
 
   goalConfig.forEach((goal, index) => {
@@ -142,7 +159,7 @@ export const buildFireProjection = (
   const yearsToFire = Math.max(0, target.getFullYear() - now.getFullYear());
 
   const currentInvestableAssets = accounts
-    .filter((a) => ["brokerage", "retirement", "cash", "espp"].includes(normalizeAccountType(a.type)))
+    .filter((a) => INVESTABLE_TYPES.has(normalizeAccountType(a.type)))
     .reduce((sum, a) => sum + a.balance, 0);
 
   const { annualIncome, annualExpense } = annualize(transactions);
@@ -298,7 +315,17 @@ export const detectPriorityDrift = (funding: GoalFunding[]): string[] => {
 
 export const buildCoupleAlignment = (transactions: Transaction[]): CoupleAlignment[] => {
   const byPartner = new Map<string, { income: number; topPriority: number; discretionary: number }>();
-  const topPriorities = new Set(["401k", "mega backdoor", "after-tax 401k", "in-plan conversion", "espp", "roth ira", "ira contribution", "backdoor roth ira", "529", "college", "emergency"]);
+
+  // Derive top-priority keywords from goal config rather than hardcoding.
+  // Uses the first 6 goals (highest-priority) and their keywords + canonical names.
+  const topPriorityGoals = DEFAULT_GOALS.slice(0, 6);
+  const topPriorities = new Set<string>();
+  for (const goal of topPriorityGoals) {
+    topPriorities.add(goal.name.toLowerCase());
+    for (const kw of goal.keywords) {
+      topPriorities.add(kw);
+    }
+  }
 
   for (const tx of transactions) {
     const current = byPartner.get(tx.owner) ?? { income: 0, topPriority: 0, discretionary: 0 };
