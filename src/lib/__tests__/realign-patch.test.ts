@@ -197,4 +197,46 @@ describe("validateGoalPatch — explicit rejection", () => {
     expect(result.valid).toBe(false);
     expect(result.errors.length).toBeGreaterThanOrEqual(2);
   });
+
+  it("rejects non-array input (null)", () => {
+    const result = validateGoalPatch(null as unknown as GoalPatch[]);
+    expect(result.valid).toBe(false);
+    expect(result.errors[0]).toContain("No goals provided");
+  });
+
+  it("rejects non-array input (object)", () => {
+    const result = validateGoalPatch({ name: "401k", weight: 1 } as unknown as GoalPatch[]);
+    expect(result.valid).toBe(false);
+    expect(result.errors[0]).toContain("No goals provided");
+  });
+
+  it("rejects keywords that is not an array", () => {
+    const goals = [
+      { name: "401k", weight: 1.0, keywords: "bad" as unknown as string[], action: "keep" },
+    ] as GoalPatch[];
+    const result = validateGoalPatch(goals);
+    expect(result.valid).toBe(false);
+    expect(result.errors[0]).toContain("'keywords' must be an array");
+  });
+
+  it("rejects at exact boundary (sum = 1.021, just over tolerance)", () => {
+    const goals: GoalPatch[] = [
+      { name: "401k", weight: 0.521, action: "keep" },
+      { name: "Roth", weight: 0.500, action: "keep" },
+    ];
+    // Sum = 1.021 > 1.0 + 0.02
+    const result = validateGoalPatch(goals);
+    expect(result.valid).toBe(false);
+    expect(result.errors[0]).toContain("sum to");
+  });
+
+  it("accepts at boundary (sum = 1.019, within tolerance)", () => {
+    const goals: GoalPatch[] = [
+      { name: "401k", weight: 0.519, action: "keep" },
+      { name: "Roth", weight: 0.500, action: "keep" },
+    ];
+    // Sum = 1.019, within ±0.02 tolerance
+    const result = validateGoalPatch(goals);
+    expect(result.valid).toBe(true);
+  });
 });
