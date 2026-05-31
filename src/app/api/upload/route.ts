@@ -71,7 +71,15 @@ const classifyScreenshot = async (
 
 const inferImageType = (fileName: string): "accounts" | "categories" | null => {
   const lower = fileName.toLowerCase();
-  if (lower.includes("account") || lower.includes("balance") || lower.includes("net-worth")) {
+  if (
+    lower.includes("account")
+    || lower.includes("balance")
+    || lower.includes("net-worth")
+    || lower.includes("credit-card")
+    || lower.includes("depository")
+    || lower.includes("investment")
+    || lower.includes("loan")
+  ) {
     return "accounts";
   }
   if (lower.includes("categor") || lower.includes("budget")) {
@@ -88,7 +96,6 @@ export async function POST(request: NextRequest) {
   const errors: string[] = [];
   const imagesToProcess: { type: "accounts" | "categories"; base64: string; fileName: string }[] = [];
   const unknownImages: { base64: string; fileName: string }[] = [];
-  const imageTypeSeen = new Set<string>();
   const csvTypeProvided = new Set<"accounts" | "categories">();
 
   for (const [, value] of formData.entries()) {
@@ -132,11 +139,6 @@ export async function POST(request: NextRequest) {
 
       const type = inferImageType(fileName);
       if (type) {
-        if (imageTypeSeen.has(type)) {
-          errors.push(`Multiple ${type} screenshots uploaded — only the first one will be used.`);
-          continue;
-        }
-        imageTypeSeen.add(type);
         imagesToProcess.push({ type, base64, fileName });
       } else {
         unknownImages.push({ base64, fileName });
@@ -154,13 +156,13 @@ export async function POST(request: NextRequest) {
       errors.push(`Could not determine what "${fileName}" shows. Try renaming with "account" or "category".`);
       continue;
     }
-    if (imageTypeSeen.has(classifyType)) {
-      errors.push(`Multiple ${classifyType} screenshots detected — only the first one will be used.`);
-      continue;
-    }
-    imageTypeSeen.add(classifyType);
     imagesToProcess.push({ type: classifyType, base64, fileName });
   }
+
+  const extractedRows: Record<"accounts" | "categories", Record<string, string | number>[]> = {
+    accounts: [],
+    categories: [],
+  };
 
   // Process screenshots through GPT-4o vision
   for (const { type, base64 } of imagesToProcess) {
@@ -174,14 +176,21 @@ export async function POST(request: NextRequest) {
         errors.push(`Could not extract ${type} data from screenshot — no items found.`);
         continue;
       }
-      const csv = toCsv(data);
-      const csvFileName = type === "accounts" ? "accounts.csv" : "categories.csv";
-      await fs.writeFile(path.join(UPLOAD_DIR, csvFileName), csv, "utf8");
-      uploaded.push(`${csvFileName} (extracted from screenshot)`);
+      extractedRows[type].push(...data);
     } catch (err) {
       const msg = err instanceof Error ? err.message : "Unknown error";
       errors.push(`Failed to extract ${type} from screenshot: ${msg}`);
     }
+  }
+
+  for (const type of ["accounts", "categories"] as const) {
+    if (csvTypeProvided.has(type) || extractedRows[type].length === 0) {
+      continue;
+    }
+    const csv = toCsv(extractedRows[type]);
+    const csvFileName = type === "accounts" ? "accounts.csv" : "categories.csv";
+    await fs.writeFile(path.join(UPLOAD_DIR, csvFileName), csv, "utf8");
+    uploaded.push(`${csvFileName} (extracted from screenshot)`);
   }
 
   if (uploaded.length === 0) {
