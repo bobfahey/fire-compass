@@ -2,10 +2,12 @@ import path from "node:path";
 import { promises as fs } from "node:fs";
 
 import { DEFAULT_CONFIG } from "@/lib/fire";
-import { FireConfig, GoalConfig, PhaseConfig } from "@/lib/types";
-import { normalizeGoalName } from "@/lib/normalization";
+import { FireConfig, GoalConfig, LifePhaseName, PhaseConfig } from "@/lib/types";
+import { normalizeAccountType, normalizeGoalName } from "@/lib/normalization";
 
-const CONFIG_PATH = process.env.FIRE_CONFIG_PATH || path.join(process.cwd(), "fire-config.json");
+function getConfigPath(): string {
+  return process.env.FIRE_CONFIG_PATH || path.join(process.cwd(), "fire-config.json");
+}
 
 export interface ConfigLoadResult {
   config: FireConfig;
@@ -46,6 +48,9 @@ function validatePhaseConfig(phase: unknown, index: number): string | null {
   if (typeof p.name !== "string" || !p.name.trim()) {
     return `phases[${index}]: missing or empty "name"`;
   }
+  if (!normalizePhaseName(p.name)) {
+    return `phases[${index}]: unrecognized phase name "${p.name}"`;
+  }
   if (typeof p.years !== "number" || !isFinite(p.years) || p.years <= 0) {
     return `phases[${index}]: "years" must be a positive number`;
   }
@@ -85,6 +90,125 @@ function normalizeGoals(goals: GoalConfig[]): { goals: GoalConfig[]; warnings: s
   }
 
   return { goals: normalized, warnings };
+}
+
+function normalizeKeywords(keywords: string[]): string[] {
+  const deduped = new Set<string>();
+  const normalized: string[] = [];
+
+  for (const keyword of keywords) {
+    const trimmed = keyword.trim();
+    if (!trimmed) {
+      continue;
+    }
+    const canonical = normalizeAccountType(trimmed);
+    if (deduped.has(canonical)) {
+      continue;
+    }
+    deduped.add(canonical);
+    normalized.push(canonical);
+  }
+
+  return normalized;
+}
+
+const LIFE_PHASE_LOOKUP = new Map<string, LifePhaseName>(
+  DEFAULT_CONFIG.phases.map((phase) => [phase.name.toLowerCase(), phase.name]),
+);
+
+function normalizePhaseName(name: string): LifePhaseName | null {
+  return LIFE_PHASE_LOOKUP.get(name.trim().toLowerCase()) ?? null;
+}
+
+export function parseAndNormalizeConfig(raw: unknown): FireConfig {
+  if (typeof raw !== "object" || raw === null || Array.isArray(raw)) {
+    return DEFAULT_CONFIG;
+  }
+
+  const obj = raw as Record<string, unknown>;
+
+  let goals = DEFAULT_CONFIG.goals;
+  if (Array.isArray(obj.goals) && obj.goals.length > 0) {
+    const parsedGoals: GoalConfig[] = [];
+    let goalsValid = true;
+
+    for (const goal of obj.goals) {
+      if (typeof goal !== "object" || goal === null) {
+        goalsValid = false;
+        break;
+      }
+
+      const g = goal as Record<string, unknown>;
+      if (
+        typeof g.name !== "string" ||
+        !g.name.trim() ||
+        typeof g.weight !== "number" ||
+        !isFinite(g.weight) ||
+        g.weight < 0 ||
+        !Array.isArray(g.keywords)
+      ) {
+        goalsValid = false;
+        break;
+      }
+
+      const keywordValues = g.keywords.filter((k): k is string => typeof k === "string");
+      parsedGoals.push({
+        name: normalizeGoalName(g.name),
+        weight: g.weight,
+        keywords: normalizeKeywords(keywordValues),
+      });
+    }
+
+    if (goalsValid && parsedGoals.length > 0) {
+      goals = parsedGoals;
+    }
+  }
+
+  let phases = DEFAULT_CONFIG.phases;
+  if (Array.isArray(obj.phases) && obj.phases.length > 0) {
+    const parsedPhases: PhaseConfig[] = [];
+    let phasesValid = true;
+
+    for (const phase of obj.phases) {
+      if (typeof phase !== "object" || phase === null) {
+        phasesValid = false;
+        break;
+      }
+
+      const p = phase as Record<string, unknown>;
+      if (
+        typeof p.name !== "string" ||
+        !p.name.trim() ||
+        typeof p.years !== "number" ||
+        !isFinite(p.years) ||
+        p.years <= 0 ||
+        typeof p.multiplier !== "number" ||
+        !isFinite(p.multiplier) ||
+        p.multiplier <= 0
+      ) {
+        phasesValid = false;
+        break;
+      }
+
+      const canonicalName = normalizePhaseName(p.name);
+      if (!canonicalName) {
+        phasesValid = false;
+        break;
+      }
+
+      parsedPhases.push({
+        name: canonicalName,
+        years: p.years,
+        multiplier: p.multiplier,
+      });
+    }
+
+    if (phasesValid && parsedPhases.length > 0) {
+      phases = parsedPhases;
+    }
+  }
+
+  return { goals, phases };
 }
 
 /**
@@ -143,8 +267,17 @@ export function parseAndValidateConfig(raw: unknown): { config: FireConfig; warn
       if (err) {
         warnings.push(`${err}; skipping entry`);
       } else {
-        const p = obj.phases[i] as PhaseConfig;
-        validPhases.push({ name: p.name, years: p.years, multiplier: p.multiplier });
+        const p = obj.phases[i] as Record<string, unknown>;
+        const canonicalName = normalizePhaseName(p.name as string);
+        if (!canonicalName) {
+          warnings.push(`phases[${i}]: unrecognized phase name "${String(p.name)}"; skipping entry`);
+          continue;
+        }
+        validPhases.push({
+          name: canonicalName,
+          years: p.years as number,
+          multiplier: p.multiplier as number,
+        });
       }
     }
     phases = validPhases.length > 0 ? validPhases : DEFAULT_CONFIG.phases;
@@ -184,10 +317,10 @@ export function serializeConfig(config: FireConfig): string {
  * Loads config from disk, validates, and normalizes.
  * Returns default config with source="default" if file doesn't exist or is unparseable.
  */
-export async function loadConfig(): Promise<ConfigLoadResult> {
+export async function loadConfigResult(): Promise<ConfigLoadResult> {
   let raw: string;
   try {
-    raw = await fs.readFile(CONFIG_PATH, "utf8");
+    raw = await fs.readFile(getConfigPath(), "utf8");
   } catch {
     return { config: DEFAULT_CONFIG, warnings: [], source: "default" };
   }
@@ -205,8 +338,7 @@ export async function loadConfig(): Promise<ConfigLoadResult> {
   }
 
   try {
-    const { config, warnings } = parseAndValidateConfig(parsed);
-    return { config, warnings, source: "file" };
+    return { config: parseAndNormalizeConfig(parsed), warnings: [], source: "file" };
   } catch (e) {
     const msg = e instanceof Error ? e.message : String(e);
     return {
@@ -217,13 +349,18 @@ export async function loadConfig(): Promise<ConfigLoadResult> {
   }
 }
 
+export async function loadConfig(): Promise<FireConfig> {
+  const result = await loadConfigResult();
+  return result.config;
+}
+
 /**
  * Saves config to disk with normalization applied.
  * Ensures persisted config is always in canonical form.
  */
 export async function saveConfig(config: FireConfig): Promise<{ warnings: string[] }> {
   const serialized = serializeConfig(config);
-  await fs.writeFile(CONFIG_PATH, serialized, "utf8");
+  await fs.writeFile(getConfigPath(), serialized, "utf8");
 
   // Report any normalization that happened
   const { warnings } = normalizeGoals(config.goals);

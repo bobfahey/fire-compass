@@ -12,7 +12,7 @@ import {
   SAFE_WITHDRAWAL_RATE,
 } from "@/lib/fire";
 import { loadDataset } from "@/lib/data-loader";
-import { loadConfig } from "@/lib/config-loader";
+import { loadConfigResult } from "@/lib/config-loader";
 import { ReAlignForm } from "./re-align-form";
 import { PortfolioChart } from "./portfolio-chart";
 import { DataUploadForm } from "./data-upload-form";
@@ -34,7 +34,7 @@ export default async function Home({
 
   const [dataset, configResult] = await Promise.all([
     loadDataset(cookieDataDir ?? process.env.FIRE_DATA_DIR),
-    loadConfig(),
+    loadConfigResult(),
   ]);
   const config = configResult.config;
 

@@ -92,6 +92,19 @@ describe("parseAndValidateConfig", () => {
     expect(config.phases[1].name).toBe("Peak Kid Costs");
   });
 
+  it("canonicalizes case-insensitive phase names and rejects unknown phase names", () => {
+    const raw = {
+      goals: [{ name: "401k", weight: 0.16, keywords: ["401k"] }],
+      phases: [
+        { name: "young kids", years: 4, multiplier: 1.1 },
+        { name: "Unknown Phase", years: 3, multiplier: 1.0 },
+      ],
+    };
+    const { config, warnings } = parseAndValidateConfig(raw);
+    expect(config.phases).toEqual([{ name: "Young Kids", years: 4, multiplier: 1.1 }]);
+    expect(warnings.some((w) => w.includes("unrecognized phase name"))).toBe(true);
+  });
+
   it("uses defaults when all goals are invalid", () => {
     const raw = {
       goals: [
