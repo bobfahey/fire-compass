@@ -32,10 +32,11 @@ export default async function Home({
   const cookieStore = await cookies();
   const cookieDataDir = cookieStore.get("fire_data_dir")?.value;
 
-  const [dataset, config] = await Promise.all([
+  const [dataset, configResult] = await Promise.all([
     loadDataset(cookieDataDir ?? process.env.FIRE_DATA_DIR),
     loadConfig(),
   ]);
+  const config = configResult.config;
 
   const phases = buildLifePhases(dataset.transactions, dataset.categories, config.phases);
   const projection = buildFireProjection(targetDate, dataset.accounts, dataset.transactions, phases);
