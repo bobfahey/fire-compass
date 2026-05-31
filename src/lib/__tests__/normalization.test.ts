@@ -6,8 +6,12 @@ import {
   CANONICAL_GOAL_NAMES,
   GOAL_NAME_ALIASES,
   buildAliasLookup,
+  buildSearchHaystack,
   normalizeAccountType,
+  normalizeBoolean,
   normalizeGoalName,
+  normalizeNumeric,
+  normalizeString,
 } from "@/lib/normalization";
 
 describe("normalizeGoalName", () => {
@@ -100,5 +104,102 @@ describe("alias map invariants", () => {
     expect(() =>
       buildAliasLookup(["one"] as const, invalidAliases, "TEST_ALIASES"),
     ).toThrow(/unknown canonical/i);
+  });
+});
+
+// ─── Primitive normalization utility tests ──────────────────────────────────
+
+describe("normalizeString", () => {
+  it("returns empty string for null and undefined", () => {
+    expect(normalizeString(null)).toBe("");
+    expect(normalizeString(undefined)).toBe("");
+  });
+
+  it("trims whitespace", () => {
+    expect(normalizeString("  hello  ")).toBe("hello");
+  });
+
+  it("collapses internal whitespace", () => {
+    expect(normalizeString("hello   world")).toBe("hello world");
+    expect(normalizeString("  a   b   c  ")).toBe("a b c");
+  });
+
+  it("returns empty string for blank input", () => {
+    expect(normalizeString("")).toBe("");
+    expect(normalizeString("   ")).toBe("");
+  });
+});
+
+describe("normalizeNumeric", () => {
+  it("returns 0 for null and undefined", () => {
+    expect(normalizeNumeric(null)).toBe(0);
+    expect(normalizeNumeric(undefined)).toBe(0);
+  });
+
+  it("returns 0 for empty string", () => {
+    expect(normalizeNumeric("")).toBe(0);
+    expect(normalizeNumeric("   ")).toBe(0);
+  });
+
+  it("parses plain numbers", () => {
+    expect(normalizeNumeric("42")).toBe(42);
+    expect(normalizeNumeric("3.14")).toBe(3.14);
+  });
+
+  it("strips dollar signs and commas", () => {
+    expect(normalizeNumeric("$1,234.56")).toBe(1234.56);
+    expect(normalizeNumeric("$100")).toBe(100);
+  });
+
+  it("handles negative values", () => {
+    expect(normalizeNumeric("-$1,000.50")).toBe(-1000.5);
+    expect(normalizeNumeric("-42")).toBe(-42);
+  });
+
+  it("returns 0 for non-numeric strings", () => {
+    expect(normalizeNumeric("abc")).toBe(0);
+    expect(normalizeNumeric("NaN")).toBe(0);
+  });
+});
+
+describe("normalizeBoolean", () => {
+  it("returns false for null and undefined", () => {
+    expect(normalizeBoolean(null)).toBe(false);
+    expect(normalizeBoolean(undefined)).toBe(false);
+  });
+
+  it("returns true only for case-insensitive 'true'", () => {
+    expect(normalizeBoolean("true")).toBe(true);
+    expect(normalizeBoolean("TRUE")).toBe(true);
+    expect(normalizeBoolean("  True  ")).toBe(true);
+  });
+
+  it("returns false for anything else", () => {
+    expect(normalizeBoolean("false")).toBe(false);
+    expect(normalizeBoolean("1")).toBe(false);
+    expect(normalizeBoolean("yes")).toBe(false);
+    expect(normalizeBoolean("")).toBe(false);
+  });
+});
+
+describe("buildSearchHaystack", () => {
+  it("joins fields with space and lowercases", () => {
+    expect(buildSearchHaystack("Hello", "World")).toBe("hello world");
+  });
+
+  it("skips null and undefined fields", () => {
+    expect(buildSearchHaystack("hello", null, "world", undefined)).toBe("hello world");
+  });
+
+  it("trims fields before joining", () => {
+    expect(buildSearchHaystack("  foo  ", "  bar  ")).toBe("foo bar");
+  });
+
+  it("returns empty string when all fields are empty/null", () => {
+    expect(buildSearchHaystack(null, undefined, "", "  ")).toBe("");
+  });
+
+  it("handles single field", () => {
+    expect(buildSearchHaystack("RETIREMENT")).toBe("retirement");
   });
 });

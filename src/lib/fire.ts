@@ -13,6 +13,7 @@ import {
   SpendingCategory,
   Transaction,
 } from "@/lib/types";
+import { buildSearchHaystack, normalizeAccountType } from "@/lib/normalization";
 
 export const REAL_RETURN_RATE = 0.07;
 export const SAFE_WITHDRAWAL_RATE = 0.04;
@@ -141,7 +142,7 @@ export const buildFireProjection = (
   const yearsToFire = Math.max(0, target.getFullYear() - now.getFullYear());
 
   const currentInvestableAssets = accounts
-    .filter((a) => ["brokerage", "retirement", "cash", "espp"].includes(a.type.toLowerCase()))
+    .filter((a) => ["brokerage", "retirement", "cash", "espp"].includes(normalizeAccountType(a.type)))
     .reduce((sum, a) => sum + a.balance, 0);
 
   const { annualIncome, annualExpense } = annualize(transactions);
@@ -196,7 +197,7 @@ export const rankGoals = (
 
   // Match accounts to goals by keywords
   for (const account of accounts) {
-    const haystack = `${account.name} ${account.type}`.toLowerCase();
+    const haystack = buildSearchHaystack(account.name, account.type);
     const match = findGoalMatch(goalConfig, haystack);
     if (match && account.balance > 0) {
       balanceByGoal.set(match.name, (balanceByGoal.get(match.name) ?? 0) + account.balance);
@@ -208,8 +209,7 @@ export const rankGoals = (
       continue;
     }
 
-    const haystack =
-      `${transaction.category} ${transaction.description} ${transaction.account}`.toLowerCase();
+    const haystack = buildSearchHaystack(transaction.category, transaction.description, transaction.account);
     const match = findGoalMatch(goalConfig, haystack);
     if (!match) {
       continue;
@@ -260,7 +260,7 @@ export const buildMonthlyGoalFunding = (
       byMonth.set(month, new Map(goalConfig.map((g) => [g.name, 0])));
     }
 
-    const haystack = `${tx.category} ${tx.description}`.toLowerCase();
+    const haystack = buildSearchHaystack(tx.category, tx.description);
     const match = findGoalMatch(goalConfig, haystack);
     if (!match) {
       continue;
@@ -306,7 +306,7 @@ export const buildCoupleAlignment = (transactions: Transaction[]): CoupleAlignme
     if (tx.amount > 0) {
       current.income += tx.amount;
     } else {
-      const haystack = `${tx.category} ${tx.description}`.toLowerCase();
+      const haystack = buildSearchHaystack(tx.category, tx.description);
       if ([...topPriorities].some((keyword) => haystack.includes(keyword))) {
         current.topPriority += Math.abs(tx.amount);
       } else {
