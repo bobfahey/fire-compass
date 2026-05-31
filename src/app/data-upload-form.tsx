@@ -3,9 +3,14 @@
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 
-type UploadSlot = "transactions" | "accountsCsv" | "categoriesCsv" | "accountsScreenshot" | "categoriesScreenshot";
+type UploadSlot =
+  | "transactions"
+  | "creditCardScreenshot"
+  | "depositoryScreenshot"
+  | "investmentScreenshot"
+  | "loanScreenshot";
 type UploadSelections = Partial<Record<UploadSlot, File>>;
-const CSV_SLOTS: UploadSlot[] = ["transactions", "accountsCsv", "categoriesCsv"];
+const CSV_SLOTS: UploadSlot[] = ["transactions"];
 
 const getFileExtension = (file: File): string => {
   const lastDot = file.name.lastIndexOf(".");
@@ -13,16 +18,13 @@ const getFileExtension = (file: File): string => {
   return file.name.slice(lastDot + 1).toLowerCase();
 };
 
-const isImage = (file: File): boolean => {
-  const ext = getFileExtension(file);
-  return ["png", "jpg", "jpeg", "webp"].includes(ext);
-};
+const isPng = (file: File): boolean => getFileExtension(file) === "png";
 
 const isValidForSlot = (slot: UploadSlot, file: File): boolean => {
   if (CSV_SLOTS.includes(slot)) {
     return getFileExtension(file) === "csv";
   }
-  return isImage(file);
+  return isPng(file);
 };
 
 export function DataUploadForm() {
@@ -67,25 +69,35 @@ export function DataUploadForm() {
     if (selections.transactions) {
       form.append("transactions.csv", selections.transactions, "transactions.csv");
     }
-    if (selections.accountsCsv) {
-      form.append("accounts.csv", selections.accountsCsv, "accounts.csv");
-    }
-    if (selections.categoriesCsv) {
-      form.append("categories.csv", selections.categoriesCsv, "categories.csv");
-    }
-    if (selections.accountsScreenshot) {
-      const fileName = `accounts-screenshot.${getFileExtension(selections.accountsScreenshot)}`;
+    if (selections.creditCardScreenshot) {
+      const fileName = `credit-card-screenshot.${getFileExtension(selections.creditCardScreenshot)}`;
       form.append(
         fileName,
-        selections.accountsScreenshot,
+        selections.creditCardScreenshot,
         fileName,
       );
     }
-    if (selections.categoriesScreenshot) {
-      const fileName = `categories-screenshot.${getFileExtension(selections.categoriesScreenshot)}`;
+    if (selections.depositoryScreenshot) {
+      const fileName = `depository-screenshot.${getFileExtension(selections.depositoryScreenshot)}`;
       form.append(
         fileName,
-        selections.categoriesScreenshot,
+        selections.depositoryScreenshot,
+        fileName,
+      );
+    }
+    if (selections.investmentScreenshot) {
+      const fileName = `investment-screenshot.${getFileExtension(selections.investmentScreenshot)}`;
+      form.append(
+        fileName,
+        selections.investmentScreenshot,
+        fileName,
+      );
+    }
+    if (selections.loanScreenshot) {
+      const fileName = `loan-screenshot.${getFileExtension(selections.loanScreenshot)}`;
+      form.append(
+        fileName,
+        selections.loanScreenshot,
         fileName,
       );
     }
@@ -109,7 +121,8 @@ export function DataUploadForm() {
     <section className="rounded-lg border border-zinc-200 p-4">
       <h2 className="mb-2 text-lg font-semibold">Upload your data</h2>
       <p className="mb-3 text-sm text-zinc-600">
-        Add your latest exports and screenshots. <strong>transactions.csv</strong> is required; everything else is optional.
+        Five slots total: <strong>1 Transactions CSV + 4 PNG account-type screenshots</strong>. Only{" "}
+        <strong>transactions.csv</strong> is required.
       </p>
 
       <div className="space-y-2">
@@ -122,31 +135,31 @@ export function DataUploadForm() {
             required: true,
           },
           {
-            slot: "accountsCsv" as const,
-            title: "Accounts CSV (optional)",
-            help: "Use this if you export account balances as CSV.",
-            accept: ".csv",
+            slot: "creditCardScreenshot" as const,
+            title: "Credit card screenshot (PNG, optional)",
+            help: "Upload the credit-card account view screenshot as PNG.",
+            accept: ".png",
             required: false,
           },
           {
-            slot: "categoriesCsv" as const,
-            title: "Categories CSV (optional)",
-            help: "Use this if you export category budgets/spend as CSV.",
-            accept: ".csv",
+            slot: "depositoryScreenshot" as const,
+            title: "Depository screenshot (PNG, optional)",
+            help: "Upload the depository account view screenshot as PNG.",
+            accept: ".png",
             required: false,
           },
           {
-            slot: "accountsScreenshot" as const,
-            title: "Accounts screenshot (optional)",
-            help: "PNG/JPG/WEBP of balances/net worth screen. Ignored if Accounts CSV is also uploaded.",
-            accept: ".png,.jpg,.jpeg,.webp",
+            slot: "investmentScreenshot" as const,
+            title: "Investment screenshot (PNG, optional)",
+            help: "Upload the investment account view screenshot as PNG.",
+            accept: ".png",
             required: false,
           },
           {
-            slot: "categoriesScreenshot" as const,
-            title: "Categories screenshot (optional)",
-            help: "PNG/JPG/WEBP of category budget screen. Ignored if Categories CSV is also uploaded.",
-            accept: ".png,.jpg,.jpeg,.webp",
+            slot: "loanScreenshot" as const,
+            title: "Loan screenshot (PNG, optional)",
+            help: "Upload the loan account view screenshot as PNG.",
+            accept: ".png",
             required: false,
           },
         ].map((field) => {
@@ -188,7 +201,7 @@ export function DataUploadForm() {
               </div>
               {invalid ? (
                 <p className="mt-1 text-xs text-red-600">
-                  {field.accept.includes(".csv") ? "Please choose a .csv file." : "Please choose a PNG, JPG, JPEG, or WEBP image."}
+                  {field.accept.includes(".csv") ? "Please choose a .csv file." : "Please choose a .png file."}
                 </p>
               ) : null}
             </div>

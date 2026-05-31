@@ -67,9 +67,17 @@ export default async function Home({
 
       {/* ── Goals & Priorities (primary view) ── */}
       <section className="rounded-lg border-2 border-zinc-300 bg-white p-5">
-        <div className="mb-4 flex items-center justify-between">
+        <div className="mb-2 flex items-center justify-between gap-3">
           <h2 className="text-xl font-bold">Goals &amp; Priorities</h2>
-          <div className="flex gap-2">
+          <a
+            href="/settings"
+            className="rounded-md border border-zinc-300 px-3 py-1.5 text-sm font-semibold text-zinc-700 hover:bg-zinc-50"
+          >
+            Edit goals &amp; priorities
+          </a>
+        </div>
+        <p className="mb-4 text-sm text-zinc-600">Use “Edit goals &amp; priorities” to add, update, reorder, or remove goals.</p>
+        <div className="mb-4 flex items-center justify-end gap-2">
             {underfundedCount > 0 && (
               <span className="rounded-full bg-amber-100 px-3 py-1 text-xs font-semibold text-amber-800">
                 {underfundedCount} underfunded
@@ -85,7 +93,6 @@ export default async function Home({
                 All on track
               </span>
             )}
-          </div>
         </div>
 
         {driftCount > 0 && (
